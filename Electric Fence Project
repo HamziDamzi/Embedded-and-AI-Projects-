@@ -1,0 +1,302 @@
+#include <WiFi.h>
+#include <Wire.h>
+#include <FirebaseESP32.h>
+
+#define API_KEY "kwsGys0AWlezGcsr2ZUKEdUZqTKKi3gXUbuVEWXS"
+#define DATABASE_URL "https://fenceproject-79fca-default-rtdb.firebaseio.com"
+
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+float sensorvalue;
+float converted;
+float alarmctrl1;
+int i = 1;
+float value;
+float alarmoff;
+#define PWM_SET1 2
+#define PWM_SET2 4
+#define PWM_PIN 14
+const int pwm = 14;  // Pin connected to the analog signal
+const int getvalue = 34; // Change this to the pin where your LED is connected
+const int buzzer = 32;
+const int remote = 13;
+const int delayhigh = 1.5;
+const int delaylow = 1000;
+const int T_Pulses = 40;
+const int PWM1 = 10, PWM2 = 20, PWM3 = 30, PWM4 =40;
+char ssid[32];
+  char password[64];
+void setup() {
+
+  Serial.begin(9600);
+  delay(2000);
+  WiFi.mode(WIFI_STA);
+  
+
+  Serial.println("Scanning for available WiFi networks...");
+  int numNetworks = WiFi.scanNetworks();
+
+  if (numNetworks == 0) {
+    Serial.println("No WiFi networks found.");
+  } else {
+    Serial.print("Found ");
+    Serial.print(numNetworks);
+    Serial.println(" WiFi networks:");
+
+    for (int i = 0; i < numNetworks; i++) {
+      Serial.print("Network ");
+      Serial.print(i + 1);
+      Serial.print(": ");
+      Serial.print(WiFi.SSID(i));
+      Serial.print(" (");
+      Serial.print(WiFi.RSSI(i));
+      Serial.println(" dBm)");
+    }
+  }
+   if (connectToKnownWifi()) {
+    Serial.println("Connected to known Wi-Fi.");
+  } else{
+  askForCredentials();
+}
+
+  pinMode(PWM_PIN, OUTPUT);  
+  pinMode(PWM_SET1, INPUT_PULLUP);  
+  pinMode(PWM_SET2, INPUT_PULLUP);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(300);
+  }
+  
+  Serial.println();
+  Serial.print("Connected with IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.println();
+  Serial.printf("Firebase Client v%s\n\n", FIREBASE_CLIENT_VERSION);
+  config.api_key = API_KEY;
+  config.database_url = DATABASE_URL;
+  Firebase.begin(DATABASE_URL, API_KEY);
+
+  pinMode(34, INPUT); // Set the LED pin as an OUTPUT
+  pinMode(buzzer, OUTPUT);
+  pinMode(remote, INPUT);
+  Firebase.setString(fbdo, "/value", "0");
+}
+
+void loop() {
+  
+  Firebase.getFloat(fbdo, "/Hamza");
+  alarmoff = fbdo.floatData();
+  Serial.print(alarmoff);
+  if (alarmoff == 5) {
+    Serial.print("Alarm is permanently off\n");
+
+      digitalWrite(buzzer, LOW);
+   
+  }
+  else if(alarmoff==6)
+  {
+     Serial.print("Permanent Alarm OFF Condition is Removed\n");
+
+  }
+  Firebase.getFloat(fbdo, "/Type");
+  float value = fbdo.floatData();
+
+  if (value == 0){
+    chk_pwm1();
+  } 
+  else if(value == 1){
+    chk_pwm2();
+  } else if(value == 2){
+    chk_pwm3();
+  }else if(value == 3){
+    chk_pwm4(); 
+  }
+  else{
+    Serial.print("No PWM IS selected\nBy Default it is PWM1 ");
+    chk_pwm1();
+  }
+}
+bool connectToKnownWifi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    return true; // Already connected to Wi-Fi
+  }
+
+  // Attempt to connect using pre-stored credentials
+  Serial.println("Connecting to pre-stored Wi-Fi...");
+  WiFi.begin();
+
+  int attempt = 0;
+  while (WiFi.status() != WL_CONNECTED && attempt < 10) {
+    delay(1000);
+    Serial.print(".");
+    attempt++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConnected to pre-stored Wi-Fi.");
+    return true;
+  } else {
+    Serial.println("\nFailed to connect to pre-stored Wi-Fi.");
+    return false;
+  }
+}
+
+void displayAvailableNetworks() {
+  Serial.println("Scanning for available Wi-Fi networks...");
+  int numNetworks = WiFi.scanNetworks();
+
+  if (numNetworks == 0) {
+    Serial.println("No Wi-Fi networks found.");
+  } else {
+    Serial.println("Available Wi-Fi networks:");
+    for (int i = 0; i < numNetworks; i++) {
+      Serial.print(WiFi.SSID(i));
+      if (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) {
+        Serial.println(" (Open)");
+      } else {
+        Serial.println(" (Secured)");
+      }
+    }
+    askForCredentials();
+  }
+}
+void askForCredentials() {
+  char ssid[32];
+  char password[64];
+
+  Serial.println("Enter the SSID of the Wi-Fi network:");
+  while (!Serial.available()) {
+    // Wait for user input
+  }
+  Serial.readBytesUntil('\n', ssid, sizeof(ssid));
+
+  Serial.println("Enter the password for the Wi-Fi network:");
+  while (!Serial.available()) {
+    // Wait for user input
+  }
+  Serial.readBytesUntil('\n', password, sizeof(password));
+
+  // Attempt to connect using user-provided credentials
+  Serial.println("Connecting to Wi-Fi using provided credentials...");
+  WiFi.begin(ssid, password);
+
+  int attempt = 0;
+  while (WiFi.status() != WL_CONNECTED && attempt < 10) {
+    delay(1000);
+    Serial.print(".");
+    attempt++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConnected to Wi-Fi using provided credentials.");
+  } else {
+    Serial.println("\nFailed to connect to Wi-Fi using provided credentials.");
+  }
+}
+void chk_pwm1()
+{
+   Serial.print("\nSelected PWM is: 00\n");
+    for(int i=0;i<PWM1;i++){
+      digitalWrite(PWM_PIN,HIGH);
+      delay(100);
+      sensorvalue = analogRead(getvalue);  // Read the analog value
+      converted = (sensorvalue * 5.0) / 4095.0;
+      Serial.println(converted);  // Print the value to the serial monitor
+      if(converted < 5.0)
+      {
+        if(alarmoff!=5){
+        alarmctrl();
+        
+      }
+      else{
+        Serial.println("Alaram is off permanently\n");
+      }
+      }
+      digitalWrite(PWM_PIN,LOW);
+      delay(1000);
+ }
+      delay(delaylow);
+}
+void chk_pwm2()
+{
+ Serial.print("\nSelected PWM is: 01\n");
+ for(int i=0;i<PWM2;i++){
+      digitalWrite(PWM_PIN,HIGH);
+      delay(1000);
+      sensorvalue = analogRead(getvalue);  // Read the analog value
+      converted = (sensorvalue * 5.0) / 4095.0;
+      Serial.println(converted);  // Print the value to the serial monitor
+          if(converted < 5.0)
+      {
+        if(alarmoff!=5){
+        alarmctrl();
+      }
+      }
+      digitalWrite(PWM_PIN,LOW);
+      delay(1000);
+      }
+      delay(delaylow);    
+  }
+
+void chk_pwm3()
+{
+ Serial.print("\nSelected PWM is: 10\n");
+  for(int i=0;i<PWM3;i++){
+      digitalWrite(PWM_PIN,HIGH);
+      delay(1000);
+      sensorvalue = analogRead(getvalue);  // Read the analog value
+      converted = (sensorvalue * 5.0) / 4095.0;
+      Serial.println(converted);  // Print the value to the serial monitor
+         if(converted < 5.0)
+      {
+        if(alarmoff!=5){
+        alarmctrl();
+      }
+      }
+      digitalWrite(PWM_PIN,LOW);
+      delay(1000);
+      }
+      delay(delaylow); 
+}
+void chk_pwm4()
+{
+ Serial.print("\nSelected PWM is: 11\n");
+  for(int i=0;i<PWM4;i++){
+        digitalWrite(PWM_PIN,HIGH);
+        delay(1000);
+        sensorvalue = analogRead(getvalue);  // Read the analog value
+      converted = (sensorvalue * 5.0) / 4095.0;
+      Serial.println(converted);  // Print the value to the serial monitor
+         if(converted < 5.0)
+      {
+        if(alarmoff!=5){
+        alarmctrl();
+      }
+      }
+        digitalWrite(PWM_PIN,LOW);
+        delay(1000);
+      }
+      delay(delaylow);    
+}        
+void alarmctrl()
+{
+   digitalWrite(buzzer, HIGH);
+   delay(7000);
+    Firebase.getFloat(fbdo, "/AlarmCtrl"); //7
+   float alarmctrl1 = fbdo.floatData();
+        Serial.print(alarmctrl1);
+       
+        Firebase.setString(fbdo, "/value", "1");
+       while(1){
+          if ((alarmctrl1==7) || (digitalRead(remote) == HIGH) || (converted ==5 ) ) {
+            digitalWrite(buzzer, LOW); 
+            Firebase.setFloat(fbdo, "/AlarmCtrl", 10);
+            break;
+          }
+           
+  }  Firebase.setString(fbdo, "/value", "0");
+}
