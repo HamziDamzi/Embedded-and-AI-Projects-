@@ -1,0 +1,2047 @@
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001                 include <p16f877.inc>
+                      00001         LIST
+                      00002 
+                      00003 ;==========================================================================
+                      00004 ;  MPASM PIC16F877 processor include
+                      00005 ; 
+                      00006 ;  (c) Copyright 1999-2013 Microchip Technology, All rights reserved
+                      00007 ;==========================================================================
+                      00008 
+                      00540         LIST
+                      00002                 list p=16f877
+                      00003 
+  00000020            00004 turbHi  EQU             0x20
+  00000021            00005 turbLo  EQU             0x21
+  00000022            00006 RegA            EQU             0x22
+  00000023            00007 RegB            EQU             0x23
+  00000024            00008 cnt             EQU             0x24
+  00000025            00009 BCDhi   EQU             0x25
+  00000026            00010 BCDlo   EQU             0x26
+  00000027            00011 BCDup   EQU             0x27
+  00000028            00012 temp            EQU             0x28
+                      00013 
+0000                  00014                 ORG             0x00
+0000   2810           00015                 goto            main
+                      00016 
+0010                  00017                 ORG             0x10
+                      00018 
+0010                  00019 main
+0010   1283 1303      00020                 banksel PORTB
+0012   1086           00021                 bcf             PORTB,RB1
+0013   1106           00022                 bcf             PORTB,RB2
+                      00023                 
+0014   1683 1303      00024                 banksel TRISB
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0016   1506           00025                 bsf             TRISB,RB2
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0017   1086           00026                 bcf             TRISB,RB1
+                      00027 
+0018   1283 1303      00028                 banksel PORTB
+                      00029 ;               call            WLSensor
+001A   2021           00030                 call            turbsens
+001B   2071           00031                 call            NTU_reading
+001C   203C           00032                 call            bin2bcd
+                      00033 
+                      00034 ;--------------------------------------------------
+                      00035 
+001D                  00036 WLSensor
+001D   1906           00037                 btfsc   PORTB,RB2
+001E   1486           00038                 bsf             PORTB,RB1
+001F   1086           00039                 bcf             PORTB,RB1
+0020   0008           00040                 return
+                      00041 
+                      00042 ;--------------------------------------------------
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00043 ;                               Turbidity Sensor
+                      00044 ;--------------------------------------------------
+                      00045 
+0021                  00046 turbsens
+0021   2025           00047                 call            adc_config
+0022   2037           00048                 call            dly40
+                      00049 
+0023   151F           00050                 bsf             ADCON0,GO
+                      00051 ;               bcf             ADCON0,ADON
+                      00052 
+0024   202E           00053                 call            ADConversion
+                      00054 
+0025                  00055 adc_config
+0025   1683 1303      00056                 banksel ADCON1
+0027   3080           00057                 movlw   B'10000000'
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0028   009F           00058                 movwf   ADCON1
+                      00059 
+0029   1283 1303      00060                 banksel ADCON0
+002B   3045           00061                 movlw   B'01000101'             ;put 01000101 in ADCON0 (channel 1/AN0) 
+002C   009F           00062                 movwf   ADCON0
+002D   0008           00063                 return          
+                      00064 
+                      00065 
+002E                  00066 ADConversion
+002E   191F           00067                 btfsc   ADCON0,GO
+002F   282E           00068                 goto            ADConversion
+                      00069                 
+0030   1283           00070                 bcf             STATUS,RP0
+0031   081E           00071                 movf            ADRESH,W                
+0032   00A0           00072                 movwf   turbHi          
+0033   1683           00073                 bsf             STATUS,RP0
+                      00074 
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0034   081E           00075                 movf            ADRESL,W
+0035   1283           00076                 bcf             STATUS,RP0
+0036   00A1           00077                 movwf   turbLo
+                      00078 
+                      00079                         
+                      00080  
+                      00081                 
+0037                  00082 dly40
+0037   3014           00083                 movlw   D'20'
+0038   00A2           00084                 movwf   RegA
+                      00085 
+0039   0BA2           00086 dly             decfsz  RegA,F
+003A   2839           00087                 goto            dly
+003B   0008           00088                 return
+                      00089 
+                      00090 
+                      00091 ;--------------------------------------------
+                      00092 ;                       BCD Conversion
+                      00093 ;--------------------------------------------
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+003C                  00094 bin2bcd
+003C   203F           00095                 call            bcd_config
+003D   2049           00096                 call            configBCD
+003E   2078           00097                 call            bcd_test
+                      00098                 
+                      00099 
+003F                  00100 bcd_config
+003F   1683 1303      00101                 banksel TRISD
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0041   0188           00102                 clrf            TRISD           
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0042   1286           00103                 bcf             TRISB,RB5
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0043   1206           00104                 bcf             TRISB,RB4
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0044   1106           00105                 bcf             TRISB,RB2
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0045   1086           00106                 bcf             TRISB,RB1
+                      00107                 
+0046   1283 1303      00108                 banksel PORTD
+0048   0008           00109                 return
+                      00110 
+                      00111 ;-----------------------------------------------------
+0049                  00112 configBCD                               
+                      00113                 
+0049   01A6           00114                 clrf            BCDlo           ;clearing BCD register that will hold the converted numb
+                            er
+004A   01A5           00115                 clrf            BCDhi           ;"              "               "               "       
+                      00116 
+004B   3010           00117                 movlw   D'16'
+004C   00A4           00118                 movwf   cnt     
+                      00119                 
+004D   1003           00120                 bcf             STATUS,C        ; clear carry flag since the rlf instruction affects the
+                             carry flag
+004E   2854           00121                 goto            convert
+                      00122                 
+004F                  00123 shift           
+004F   0DA8           00124                 rlf             temp,F
+0050   0DA6           00125                 rlf             BCDlo,F
+0051   0DA5           00126                 rlf             BCDhi,F
+                      00127                 
+0052   0BA4           00128                 decfsz  cnt,F
+0053   2854           00129                 goto            convert
+                      00130 ;               goto            extract
+                      00131                 
+                      00132                 
+0054                  00133 convert
+0054   3033           00134                 movlw   0x33
+0055   07A6           00135                 addwf   BCDlo,F
+                      00136 
+0056   19A6           00137                 btfsc   BCDlo,3
+0057   39F0           00138                 andlw   0xF0
+                      00139 
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  4
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0058   1BA6           00140                 btfsc   BCDlo,7
+0059   390F           00141                 andlw   0x0F
+                      00142 
+005A   02A6           00143                 subwf   BCDlo,F
+                      00144 
+                      00145 
+005B   3033           00146                 movlw   0x33
+005C   07A5           00147                 addwf   BCDhi,F
+005D   19A5           00148                 btfsc   BCDhi,3
+005E   39F0           00149                 andlw   0xF0
+005F   1BA5           00150                 btfsc   BCDhi,7
+0060   390F           00151                 andlw   0x0F
+0061   02A5           00152                 subwf   BCDhi,F
+                      00153 
+0062   0DA1           00154                 rlf             turbLo,F
+0063   0DA0           00155                 rlf             turbHi,F
+                      00156 
+0064   0DA6           00157                 rlf             BCDlo,F
+0065   0DA5           00158                 rlf             BCDhi,F
+Message[305]: Using default destination of 1 (file).
+0066   0DA7           00159                 rlf             BCDup
+                      00160 
+0067   0BA4           00161                 decfsz  cnt,F
+0068   2854           00162                 goto            convert
+                      00163                 ;goto           BCDdigits
+                      00164 
+0069                  00165 BCDdigits
+0069   0826           00166                 movf            BCDlo,W
+006A   39F0           00167                 andlw   0xF0
+                      00168 ;               andlw   BCDlo
+006B   00A7           00169                 movwf   BCDup
+Message[305]: Using default destination of 1 (file).
+006C   0EA7           00170                 swapf   BCDup
+                      00171 
+006D   0826           00172                 movf            BCDlo,W
+006E   390F           00173                 andlw   0x0F
+006F   00A6           00174                 movwf   BCDlo
+                      00175 
+0070   0008           00176                 return
+                      00177 
+                      00178 ;==================================================
+                      00179 ;                               BIN to NTU
+                      00180 ;==================================================
+                      00181 
+0071                  00182 NTU_reading
+0071   0821           00183                 movf            turbLo,W
+0072   20BA           00184                 call            LkUpLo
+0073   00A1           00185                 movwf   turbLo
+                      00186 
+0074   0820           00187                 movf            turbHi,W
+0075   22E7           00188                 call            LkUpHi
+0076   00A0           00189                 movwf   turbHi
+                      00190 
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0077   0008           00191                 return
+                      00192 
+                      00193 ;---------------------------------------------------
+                      00194 
+0078                  00195 bcd_test
+0078   0188           00196                 clrf            PORTD
+0079   1286           00197                 bcf             PORTB,RB5
+007A   1206           00198                 bcf             PORTB,RB4
+007B   1106           00199                 bcf             PORTB,RB2
+007C   1086           00200                 bcf             PORTB,RB1
+                      00201 
+                      00202                 
+                      00203                 ;call   sseg_bcd
+                      00204                 
+007D   0825           00205                 movf            BCDhi,W
+007E   20AC           00206                 call            bcd_lkup
+007F   0088           00207                 movwf   PORTD
+0080   1686           00208                 bsf             PORTB,RB5
+0081   2097           00209                 call            mux_delay
+0082   1286           00210                 bcf             PORTB,RB5
+                      00211         
+0083   0827           00212                 movf            BCDup,W
+0084   20AC           00213                 call            bcd_lkup
+0085   0088           00214                 movwf   PORTD
+0086   1606           00215                 bsf             PORTB,RB4
+0087   2097           00216                 call            mux_delay
+0088   1206           00217                 bcf             PORTB,RB4
+                      00218 
+0089   0826           00219                 movf            BCDlo,W
+008A   20AC           00220                 call            bcd_lkup
+008B   0088           00221                 movwf   PORTD
+008C   1408           00222                 bsf             PORTD,0
+008D   1506           00223                 bsf             PORTB,RB2
+008E   2097           00224                 call            mux_delay
+008F   1106           00225                 bcf             PORTB,RB2
+                      00226 
+0090   3001           00227                 movlw   0x01
+0091   20AC           00228                 call            bcd_lkup
+0092   0088           00229                 movwf   PORTD
+0093   1486           00230                 bsf             PORTB,RB1
+0094   2097           00231                 call            mux_delay
+0095   1086           00232                 bcf             PORTB,RB1
+                      00233 
+0096   2878           00234                 goto            bcd_test
+                      00235                 
+0097                  00236 mux_delay       
+0097   30F9           00237                 movlw   0xF9
+0098   00A2           00238                 movwf   RegA
+0099   00A3           00239                 movwf   RegB
+                      00240         
+009A                  00241 dly1    
+Message[305]: Using default destination of 1 (file).
+009A   0BA2           00242                 decfsz  RegA
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+009B   289A           00243                 goto    dly1
+                      00244         
+009C                  00245 dly2    
+Message[305]: Using default destination of 1 (file).
+009C   0BA3           00246                 decfsz  RegB
+009D   289C           00247                 goto    dly2
+009E   0008           00248                 return
+                      00249         
+                      00250         
+009F                  00251 sseg_bcd
+009F   300F           00252                 movlw   0x0F
+Message[305]: Using default destination of 1 (file).
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+00A0   059E           00253                 andwf   ADRESL
+00A1   20AC           00254                 call            bcd_lkup
+00A2   1686           00255                 bsf             PORTB,RB5
+00A3   2097           00256                 call            mux_delay
+00A4   1286           00257                 bcf             PORTB,RB5
+                      00258         
+00A5   30F0           00259                 movlw   0xF0
+Message[305]: Using default destination of 1 (file).
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+00A6   059E           00260                 andwf   ADRESL
+00A7   20AC           00261                 call            bcd_lkup
+00A8   1606           00262                 bsf             PORTB,RB4
+00A9   2097           00263                 call            mux_delay
+00AA   1206           00264                 bcf             PORTB,RB4
+                      00265         
+00AB   0008           00266                 return
+                      00267 ;------------------------------------
+00AC                  00268 bcd_lkup
+00AC   0782           00269                 addwf   PCL,F
+00AD   34FC           00270                 retlw           b'11111100' ;0
+00AE   340C           00271                 retlw           b'00001100' ;1
+00AF   34DA           00272                 retlw           b'11011010' ;2
+00B0   34F2           00273                 retlw           b'11110010' ;3
+00B1   3466           00274                 retlw           b'01100110' ;4
+00B2   34B6           00275                 retlw           b'10110110' ;5
+00B3   34BE           00276                 retlw           b'10111110' ;6
+00B4   34E0           00277                 retlw           b'11100000' ;7
+00B5   34FE           00278                 retlw           b'11111110' ;8
+00B6   34F6           00279                 retlw           b'11110110' ;9
+00B7   346C           00280                 retlw           b'01101100' ;H  (A)
+00B8   3402           00281                 retlw           b'00000010' ;-  (B)
+00B9   341C           00282                 retlw   b'00011100' ;L  (C)
+                      00283 
+                      00284 ;=======================================================
+                      00285 ;                               BCDlo lookup
+                      00286 ;=======================================================
+                      00287 
+00BA                  00288 LkUpLo
+00BA   0782           00289                 addwf   PCL,F
+00BB   3495           00290                 retlw   B'10010101'  ;1586.21
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  7
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00BC   3496           00291                 retlw   B'10010110'  ;1583.35
+00BD   3497           00292                 retlw   B'10010111'  ;1580.5
+00BE   3498           00293                 retlw   B'10011000'  ;1577.64
+00BF   3499           00294                 retlw   B'10011001'  ;1574.79
+00C0   349A           00295                 retlw   B'10011010'  ;1571.93
+00C1   349B           00296                 retlw   B'10011011'  ;1569.08
+00C2   349C           00297                 retlw   B'10011100'  ;1566.23
+00C3   349D           00298                 retlw   B'10011101'  ;1563.37
+00C4   349E           00299                 retlw   B'10011110'  ;1560.52
+00C5   349F           00300                 retlw   B'10011111'  ;1557.66
+00C6   34A0           00301                 retlw   B'10100000'  ;1554.81
+00C7   34A1           00302                 retlw   B'10100001'  ;1551.95
+00C8   34A2           00303                 retlw   B'10100010'  ;1549.1
+00C9   34A3           00304                 retlw   B'10100011'  ;1546.24
+00CA   34A4           00305                 retlw   B'10100100'  ;1543.39
+00CB   34A5           00306                 retlw   B'10100101'  ;1540.53
+00CC   34A6           00307                 retlw   B'10100110'  ;1537.68
+00CD   34A7           00308                 retlw   B'10100111'  ;1534.83
+00CE   34A8           00309                 retlw   B'10101000'  ;1531.97
+00CF   34A9           00310                 retlw   B'10101001'  ;1529.12
+00D0   34AA           00311                 retlw   B'10101010'  ;1526.26
+00D1   34AB           00312                 retlw   B'10101011'  ;1523.41
+00D2   34AC           00313                 retlw   B'10101100'  ;1520.55
+00D3   34AD           00314                 retlw   B'10101101'  ;1517.7
+00D4   34AE           00315                 retlw   B'10101110'  ;1514.84
+00D5   34AF           00316                 retlw   B'10101111'  ;1511.99
+00D6   34B0           00317                 retlw   B'10110000'  ;1509.13
+00D7   34B1           00318                 retlw   B'10110001'  ;1506.28
+00D8   34B2           00319                 retlw   B'10110010'  ;1503.43
+00D9   34B3           00320                 retlw   B'10110011'  ;1500.57
+00DA   34B4           00321                 retlw   B'10110100'  ;1497.72
+00DB   34B5           00322                 retlw   B'10110101'  ;1494.86
+00DC   34B6           00323                 retlw   B'10110110'  ;1492.01
+00DD   34B7           00324                 retlw   B'10110111'  ;1489.15
+00DE   34B8           00325                 retlw   B'10111000'  ;1486.3
+00DF   34B9           00326                 retlw   B'10111001'  ;1483.44
+00E0   34BA           00327                 retlw   B'10111010'  ;1480.59
+00E1   34BB           00328                 retlw   B'10111011'  ;1477.73
+00E2   34BC           00329                 retlw   B'10111100'  ;1474.88
+00E3   34BD           00330                 retlw   B'10111101'  ;1472.03
+00E4   34BE           00331                 retlw   B'10111110'  ;1469.17
+00E5   34BF           00332                 retlw   B'10111111'  ;1466.32
+00E6   34C0           00333                 retlw   B'11000000'  ;1463.46
+00E7   34C1           00334                 retlw   B'11000001'  ;1460.61
+00E8   34C2           00335                 retlw   B'11000010'  ;1457.75
+00E9   34C3           00336                 retlw   B'11000011'  ;1454.9
+00EA   34C4           00337                 retlw   B'11000100'  ;1452.04
+00EB   34C5           00338                 retlw   B'11000101'  ;1449.19
+00EC   34C6           00339                 retlw   B'11000110'  ;1446.33
+00ED   34C7           00340                 retlw   B'11000111'  ;1443.48
+00EE   34C8           00341                 retlw   B'11001000'  ;1440.62
+00EF   34C9           00342                 retlw   B'11001001'  ;1437.77
+00F0   34CA           00343                 retlw   B'11001010'  ;1434.92
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  8
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00F1   34CB           00344                 retlw   B'11001011'  ;1432.06
+00F2   34CC           00345                 retlw   B'11001100'  ;1429.21
+00F3   34CD           00346                 retlw   B'11001101'  ;1426.35
+00F4   34CE           00347                 retlw   B'11001110'  ;1423.5
+00F5   34CF           00348                 retlw   B'11001111'  ;1420.64
+00F6   34D0           00349                 retlw   B'11010000'  ;1417.79
+00F7   34D1           00350                 retlw   B'11010001'  ;1414.93
+00F8   34D2           00351                 retlw   B'11010010'  ;1412.08
+00F9   34D3           00352                 retlw   B'11010011'  ;1409.22
+00FA   34D4           00353                 retlw   B'11010100'  ;1406.37
+00FB   34D5           00354                 retlw   B'11010101'  ;1403.52
+00FC   34D6           00355                 retlw   B'11010110'  ;1400.66
+00FD   34D7           00356                 retlw   B'11010111'  ;1397.81
+00FE   34D8           00357                 retlw   B'11011000'  ;1394.95
+00FF   34D9           00358                 retlw   B'11011001'  ;1392.1
+0100   34DA           00359                 retlw   B'11011010'  ;1389.24
+0101   34DB           00360                 retlw   B'11011011'  ;1386.39
+0102   34DC           00361                 retlw   B'11011100'  ;1383.53
+0103   34DD           00362                 retlw   B'11011101'  ;1380.68
+0104   34DE           00363                 retlw   B'11011110'  ;1377.82
+0105   34DF           00364                 retlw   B'11011111'  ;1374.97
+0106   34E0           00365                 retlw   B'11100000'  ;1372.12
+0107   34E1           00366                 retlw   B'11100001'  ;1369.26
+0108   34E2           00367                 retlw   B'11100010'  ;1366.41
+0109   34E3           00368                 retlw   B'11100011'  ;1363.55
+010A   34E4           00369                 retlw   B'11100100'  ;1360.7
+010B   34E5           00370                 retlw   B'11100101'  ;1357.84
+010C   34E6           00371                 retlw   B'11100110'  ;1354.99
+010D   34E7           00372                 retlw   B'11100111'  ;1352.13
+010E   34E8           00373                 retlw   B'11101000'  ;1349.28
+010F   34E9           00374                 retlw   B'11101001'  ;1346.42
+0110   34EA           00375                 retlw   B'11101010'  ;1343.57
+0111   34EB           00376                 retlw   B'11101011'  ;1340.71
+0112   34EC           00377                 retlw   B'11101100'  ;1337.86
+0113   34ED           00378                 retlw   B'11101101'  ;1335.01
+0114   34EE           00379                 retlw   B'11101110'  ;1332.15
+0115   34EF           00380                 retlw   B'11101111'  ;1329.3
+0116   34F0           00381                 retlw   B'11110000'  ;1326.44
+0117   34F1           00382                 retlw   B'11110001'  ;1323.59
+0118   34F2           00383                 retlw   B'11110010'  ;1320.73
+0119   34F3           00384                 retlw   B'11110011'  ;1317.88
+011A   34F4           00385                 retlw   B'11110100'  ;1315.02
+011B   34F5           00386                 retlw   B'11110101'  ;1312.17
+011C   34F6           00387                 retlw   B'11110110'  ;1309.31
+011D   34F7           00388                 retlw   B'11110111'  ;1306.46
+011E   34F8           00389                 retlw   B'11111000'  ;1303.61
+011F   34F9           00390                 retlw   B'11111001'  ;1300.75
+0120   34FA           00391                 retlw   B'11111010'  ;1297.9
+0121   34FB           00392                 retlw   B'11111011'  ;1295.04
+0122   34FC           00393                 retlw   B'11111100'  ;1292.19
+0123   34FD           00394                 retlw   B'11111101'  ;1289.33
+0124   34FE           00395                 retlw   B'11111110'  ;1286.48
+0125   34FF           00396                 retlw   B'11111111'  ;1283.62
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE  9
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0126   3400           00397                 retlw   B'00000000'  ;1280.77
+0127   3401           00398                 retlw   B'00000001'  ;1277.91
+0128   3402           00399                 retlw   B'00000010'  ;1275.06
+0129   3403           00400                 retlw   B'00000011'  ;1272.21
+012A   3404           00401                 retlw   B'00000100'  ;1269.35
+012B   3405           00402                 retlw   B'00000101'  ;1266.5
+012C   3406           00403                 retlw   B'00000110'  ;1263.64
+012D   3407           00404                 retlw   B'00000111'  ;1260.79
+012E   3408           00405                 retlw   B'00001000'  ;1257.93
+012F   3409           00406                 retlw   B'00001001'  ;1255.08
+0130   340A           00407                 retlw   B'00001010'  ;1252.22
+0131   340B           00408                 retlw   B'00001011'  ;1249.37
+0132   340C           00409                 retlw   B'00001100'  ;1246.51
+0133   340D           00410                 retlw   B'00001101'  ;1243.66
+0134   340E           00411                 retlw   B'00001110'  ;1240.81
+0135   340F           00412                 retlw   B'00001111'  ;1237.95
+0136   3410           00413                 retlw   B'00010000'  ;1235.1
+0137   3411           00414                 retlw   B'00010001'  ;1232.24
+0138   3412           00415                 retlw   B'00010010'  ;1229.39
+0139   3413           00416                 retlw   B'00010011'  ;1226.53
+013A   3414           00417                 retlw   B'00010100'  ;1223.68
+013B   3415           00418                 retlw   B'00010101'  ;1220.82
+013C   3416           00419                 retlw   B'00010110'  ;1217.97
+013D   3417           00420                 retlw   B'00010111'  ;1215.11
+013E   3418           00421                 retlw   B'00011000'  ;1212.26
+013F   3419           00422                 retlw   B'00011001'  ;1209.4
+0140   341A           00423                 retlw   B'00011010'  ;1206.55
+0141   341B           00424                 retlw   B'00011011'  ;1203.7
+0142   341C           00425                 retlw   B'00011100'  ;1200.84
+0143   341D           00426                 retlw   B'00011101'  ;1197.99
+0144   341E           00427                 retlw   B'00011110'  ;1195.13
+0145   341F           00428                 retlw   B'00011111'  ;1192.28
+0146   3420           00429                 retlw   B'00100000'  ;1189.42
+0147   3421           00430                 retlw   B'00100001'  ;1186.57
+0148   3422           00431                 retlw   B'00100010'  ;1183.71
+0149   3423           00432                 retlw   B'00100011'  ;1180.86
+014A   3424           00433                 retlw   B'00100100'  ;1178
+014B   3425           00434                 retlw   B'00100101'  ;1175.15
+014C   3426           00435                 retlw   B'00100110'  ;1172.3
+014D   3427           00436                 retlw   B'00100111'  ;1169.44
+014E   3428           00437                 retlw   B'00101000'  ;1166.59
+014F   3429           00438                 retlw   B'00101001'  ;1163.73
+0150   342A           00439                 retlw   B'00101010'  ;1160.88
+0151   342B           00440                 retlw   B'00101011'  ;1158.02
+0152   342C           00441                 retlw   B'00101100'  ;1155.17
+0153   342D           00442                 retlw   B'00101101'  ;1152.31
+0154   342E           00443                 retlw   B'00101110'  ;1149.46
+0155   342F           00444                 retlw   B'00101111'  ;1146.6
+0156   3430           00445                 retlw   B'00110000'  ;1143.75
+0157   3431           00446                 retlw   B'00110001'  ;1140.9
+0158   3432           00447                 retlw   B'00110010'  ;1138.04
+0159   3433           00448                 retlw   B'00110011'  ;1135.19
+015A   3434           00449                 retlw   B'00110100'  ;1132.33
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 10
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+015B   3435           00450                 retlw   B'00110101'  ;1129.48
+015C   3436           00451                 retlw   B'00110110'  ;1126.62
+015D   3437           00452                 retlw   B'00110111'  ;1123.77
+015E   3438           00453                 retlw   B'00111000'  ;1120.91
+015F   3439           00454                 retlw   B'00111001'  ;1118.06
+0160   343A           00455                 retlw   B'00111010'  ;1115.2
+0161   343B           00456                 retlw   B'00111011'  ;1112.35
+0162   343C           00457                 retlw   B'00111100'  ;1109.49
+0163   343D           00458                 retlw   B'00111101'  ;1106.64
+0164   343E           00459                 retlw   B'00111110'  ;1103.79
+0165   343F           00460                 retlw   B'00111111'  ;1100.93
+0166   3440           00461                 retlw   B'01000000'  ;1098.08
+0167   3441           00462                 retlw   B'01000001'  ;1095.22
+0168   3442           00463                 retlw   B'01000010'  ;1092.37
+0169   3443           00464                 retlw   B'01000011'  ;1089.51
+016A   3444           00465                 retlw   B'01000100'  ;1086.66
+016B   3445           00466                 retlw   B'01000101'  ;1083.8
+016C   3446           00467                 retlw   B'01000110'  ;1080.95
+016D   3447           00468                 retlw   B'01000111'  ;1078.09
+016E   3448           00469                 retlw   B'01001000'  ;1075.24
+016F   3449           00470                 retlw   B'01001001'  ;1072.39
+0170   344A           00471                 retlw   B'01001010'  ;1069.53
+0171   344B           00472                 retlw   B'01001011'  ;1066.68
+0172   344C           00473                 retlw   B'01001100'  ;1063.82
+0173   344D           00474                 retlw   B'01001101'  ;1060.97
+0174   344E           00475                 retlw   B'01001110'  ;1058.11
+0175   344F           00476                 retlw   B'01001111'  ;1055.26
+0176   3450           00477                 retlw   B'01010000'  ;1052.4
+0177   3451           00478                 retlw   B'01010001'  ;1049.55
+0178   3452           00479                 retlw   B'01010010'  ;1046.69
+0179   3453           00480                 retlw   B'01010011'  ;1043.84
+017A   3454           00481                 retlw   B'01010100'  ;1040.99
+017B   3455           00482                 retlw   B'01010101'  ;1038.13
+017C   3456           00483                 retlw   B'01010110'  ;1035.28
+017D   3457           00484                 retlw   B'01010111'  ;1032.42
+017E   3458           00485                 retlw   B'01011000'  ;1029.57
+017F   3459           00486                 retlw   B'01011001'  ;1026.71
+0180   345A           00487                 retlw   B'01011010'  ;1023.86
+0181   345B           00488                 retlw   B'01011011'  ;1021
+0182   345C           00489                 retlw   B'01011100'  ;1018.15
+0183   345D           00490                 retlw   B'01011101'  ;1015.29
+0184   345E           00491                 retlw   B'01011110'  ;1012.44
+0185   345F           00492                 retlw   B'01011111'  ;1009.59
+0186   3460           00493                 retlw   B'01100000'  ;1006.73
+0187   3461           00494                 retlw   B'01100001'  ;1003.88
+0188   3462           00495                 retlw   B'01100010'  ;1001.02
+0189   3463           00496                 retlw   B'01100011'  ;998.167
+018A   3464           00497                 retlw   B'01100100'  ;995.312
+018B   3465           00498                 retlw   B'01100101'  ;992.458
+018C   3466           00499                 retlw   B'01100110'  ;989.603
+018D   3467           00500                 retlw   B'01100111'  ;986.749
+018E   3468           00501                 retlw   B'01101000'  ;983.894
+018F   3469           00502                 retlw   B'01101001'  ;981.039
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 11
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0190   346A           00503                 retlw   B'01101010'  ;978.185
+0191   346B           00504                 retlw   B'01101011'  ;975.33
+0192   346C           00505                 retlw   B'01101100'  ;972.476
+0193   346D           00506                 retlw   B'01101101'  ;969.621
+0194   346E           00507                 retlw   B'01101110'  ;966.767
+0195   346F           00508                 retlw   B'01101111'  ;963.912
+0196   3470           00509                 retlw   B'01110000'  ;961.057
+0197   3471           00510                 retlw   B'01110001'  ;958.203
+0198   3472           00511                 retlw   B'01110010'  ;955.348
+0199   3473           00512                 retlw   B'01110011'  ;952.494
+019A   3474           00513                 retlw   B'01110100'  ;949.639
+019B   3475           00514                 retlw   B'01110101'  ;946.785
+019C   3476           00515                 retlw   B'01110110'  ;943.93
+019D   3477           00516                 retlw   B'01110111'  ;941.075
+019E   3478           00517                 retlw   B'01111000'  ;938.221
+019F   3479           00518                 retlw   B'01111001'  ;935.366
+01A0   347A           00519                 retlw   B'01111010'  ;932.512
+01A1   347B           00520                 retlw   B'01111011'  ;929.657
+01A2   347C           00521                 retlw   B'01111100'  ;926.803
+01A3   347D           00522                 retlw   B'01111101'  ;923.948
+01A4   347E           00523                 retlw   B'01111110'  ;921.094
+01A5   347F           00524                 retlw   B'01111111'  ;918.239
+01A6   3480           00525                 retlw   B'10000000'  ;915.384
+01A7   3481           00526                 retlw   B'10000001'  ;912.53
+01A8   3482           00527                 retlw   B'10000010'  ;909.675
+01A9   3483           00528                 retlw   B'10000011'  ;906.821
+01AA   3484           00529                 retlw   B'10000100'  ;903.966
+01AB   3485           00530                 retlw   B'10000101'  ;901.112
+01AC   3486           00531                 retlw   B'10000110'  ;898.257
+01AD   3487           00532                 retlw   B'10000111'  ;895.402
+01AE   3488           00533                 retlw   B'10001000'  ;892.548
+01AF   3489           00534                 retlw   B'10001001'  ;889.693
+01B0   348A           00535                 retlw   B'10001010'  ;886.839
+01B1   348B           00536                 retlw   B'10001011'  ;883.984
+01B2   348C           00537                 retlw   B'10001100'  ;881.13
+01B3   348D           00538                 retlw   B'10001101'  ;878.275
+01B4   348E           00539                 retlw   B'10001110'  ;875.42
+01B5   348F           00540                 retlw   B'10001111'  ;872.566
+01B6   3490           00541                 retlw   B'10010000'  ;869.711
+01B7   3491           00542                 retlw   B'10010001'  ;866.857
+01B8   3492           00543                 retlw   B'10010010'  ;864.002
+01B9   3493           00544                 retlw   B'10010011'  ;861.148
+01BA   3494           00545                 retlw   B'10010100'  ;858.293
+01BB   3495           00546                 retlw   B'10010101'  ;855.438
+01BC   3496           00547                 retlw   B'10010110'  ;852.584
+01BD   3497           00548                 retlw   B'10010111'  ;849.729
+01BE   3498           00549                 retlw   B'10011000'  ;846.875
+01BF   3499           00550                 retlw   B'10011001'  ;844.02
+01C0   349A           00551                 retlw   B'10011010'  ;841.166
+01C1   349B           00552                 retlw   B'10011011'  ;838.311
+01C2   349C           00553                 retlw   B'10011100'  ;835.456
+01C3   349D           00554                 retlw   B'10011101'  ;832.602
+01C4   349E           00555                 retlw   B'10011110'  ;829.747
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 12
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+01C5   349F           00556                 retlw   B'10011111'  ;826.893
+01C6   34A0           00557                 retlw   B'10100000'  ;824.038
+01C7   34A1           00558                 retlw   B'10100001'  ;821.184
+01C8   34A2           00559                 retlw   B'10100010'  ;818.329
+01C9   34A3           00560                 retlw   B'10100011'  ;815.475
+01CA   34A4           00561                 retlw   B'10100100'  ;812.62
+01CB   34A5           00562                 retlw   B'10100101'  ;809.765
+01CC   34A6           00563                 retlw   B'10100110'  ;806.911
+01CD   34A7           00564                 retlw   B'10100111'  ;804.056
+01CE   34A8           00565                 retlw   B'10101000'  ;801.202
+01CF   34A9           00566                 retlw   B'10101001'  ;798.347
+01D0   34AA           00567                 retlw   B'10101010'  ;795.493
+01D1   34AB           00568                 retlw   B'10101011'  ;792.638
+01D2   34AC           00569                 retlw   B'10101100'  ;789.783
+01D3   34AD           00570                 retlw   B'10101101'  ;786.929
+01D4   34AE           00571                 retlw   B'10101110'  ;784.074
+01D5   34AF           00572                 retlw   B'10101111'  ;781.22
+01D6   34B0           00573                 retlw   B'10110000'  ;778.365
+01D7   34B1           00574                 retlw   B'10110001'  ;775.511
+01D8   34B2           00575                 retlw   B'10110010'  ;772.656
+01D9   34B3           00576                 retlw   B'10110011'  ;769.801
+01DA   34B4           00577                 retlw   B'10110100'  ;766.947
+01DB   34B5           00578                 retlw   B'10110101'  ;764.092
+01DC   34B6           00579                 retlw   B'10110110'  ;761.238
+01DD   34B7           00580                 retlw   B'10110111'  ;758.383
+01DE   34B8           00581                 retlw   B'10111000'  ;755.529
+01DF   34B9           00582                 retlw   B'10111001'  ;752.674
+01E0   34BA           00583                 retlw   B'10111010'  ;749.819
+01E1   34BB           00584                 retlw   B'10111011'  ;746.965
+01E2   34BC           00585                 retlw   B'10111100'  ;744.11
+01E3   34BD           00586                 retlw   B'10111101'  ;741.256
+01E4   34BE           00587                 retlw   B'10111110'  ;738.401
+01E5   34BF           00588                 retlw   B'10111111'  ;735.547
+01E6   34C0           00589                 retlw   B'11000000'  ;732.692
+01E7   34C1           00590                 retlw   B'11000001'  ;729.837
+01E8   34C2           00591                 retlw   B'11000010'  ;726.983
+01E9   34C3           00592                 retlw   B'11000011'  ;724.128
+01EA   34C4           00593                 retlw   B'11000100'  ;721.274
+01EB   34C5           00594                 retlw   B'11000101'  ;718.419
+01EC   34C6           00595                 retlw   B'11000110'  ;715.565
+01ED   34C7           00596                 retlw   B'11000111'  ;712.71
+01EE   34C8           00597                 retlw   B'11001000'  ;709.856
+01EF   34C9           00598                 retlw   B'11001001'  ;707.001
+01F0   34CA           00599                 retlw   B'11001010'  ;704.146
+01F1   34CB           00600                 retlw   B'11001011'  ;701.292
+01F2   34CC           00601                 retlw   B'11001100'  ;698.437
+01F3   34CD           00602                 retlw   B'11001101'  ;695.583
+01F4   34CE           00603                 retlw   B'11001110'  ;692.728
+01F5   34CF           00604                 retlw   B'11001111'  ;689.874
+01F6   34D0           00605                 retlw   B'11010000'  ;687.019
+01F7   34D1           00606                 retlw   B'11010001'  ;684.164
+01F8   34D2           00607                 retlw   B'11010010'  ;681.31
+01F9   34D3           00608                 retlw   B'11010011'  ;678.455
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 13
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+01FA   34D4           00609                 retlw   B'11010100'  ;675.601
+01FB   34D5           00610                 retlw   B'11010101'  ;672.746
+01FC   34D6           00611                 retlw   B'11010110'  ;669.892
+01FD   34D7           00612                 retlw   B'11010111'  ;667.037
+01FE   34D8           00613                 retlw   B'11011000'  ;664.182
+01FF   34D9           00614                 retlw   B'11011001'  ;661.328
+0200   34DA           00615                 retlw   B'11011010'  ;658.473
+0201   34DB           00616                 retlw   B'11011011'  ;655.619
+0202   34DC           00617                 retlw   B'11011100'  ;652.764
+0203   34DD           00618                 retlw   B'11011101'  ;649.91
+0204   34DE           00619                 retlw   B'11011110'  ;647.055
+0205   34DF           00620                 retlw   B'11011111'  ;644.2
+0206   34E0           00621                 retlw   B'11100000'  ;641.346
+0207   34E1           00622                 retlw   B'11100001'  ;638.491
+0208   34E2           00623                 retlw   B'11100010'  ;635.637
+0209   34E3           00624                 retlw   B'11100011'  ;632.782
+020A   34E4           00625                 retlw   B'11100100'  ;629.928
+020B   34E5           00626                 retlw   B'11100101'  ;627.073
+020C   34E6           00627                 retlw   B'11100110'  ;624.219
+020D   34E7           00628                 retlw   B'11100111'  ;621.364
+020E   34E8           00629                 retlw   B'11101000'  ;618.509
+020F   34E9           00630                 retlw   B'11101001'  ;615.655
+0210   34EA           00631                 retlw   B'11101010'  ;612.8
+0211   34EB           00632                 retlw   B'11101011'  ;609.946
+0212   34EC           00633                 retlw   B'11101100'  ;607.091
+0213   34ED           00634                 retlw   B'11101101'  ;604.237
+0214   34EE           00635                 retlw   B'11101110'  ;601.382
+0215   34EF           00636                 retlw   B'11101111'  ;598.527
+0216   34F0           00637                 retlw   B'11110000'  ;595.673
+0217   34F1           00638                 retlw   B'11110001'  ;592.818
+0218   34F2           00639                 retlw   B'11110010'  ;589.964
+0219   34F3           00640                 retlw   B'11110011'  ;587.109
+021A   34F4           00641                 retlw   B'11110100'  ;584.255
+021B   34F5           00642                 retlw   B'11110101'  ;581.4
+021C   34F6           00643                 retlw   B'11110110'  ;578.545
+021D   34F7           00644                 retlw   B'11110111'  ;575.691
+021E   34F8           00645                 retlw   B'11111000'  ;572.836
+021F   34F9           00646                 retlw   B'11111001'  ;569.982
+0220   34FA           00647                 retlw   B'11111010'  ;567.127
+0221   34FB           00648                 retlw   B'11111011'  ;564.273
+0222   34FC           00649                 retlw   B'11111100'  ;561.418
+0223   34FD           00650                 retlw   B'11111101'  ;558.563
+0224   34FE           00651                 retlw   B'11111110'  ;555.709
+0225   34FF           00652                 retlw   B'11111111'  ;552.854
+0226   3400           00653                 retlw   B'00000000'  ;550
+0227   3401           00654                 retlw   B'00000001'  ;547.145
+0228   3402           00655                 retlw   B'00000010'  ;544.291
+0229   3403           00656                 retlw   B'00000011'  ;541.436
+022A   3404           00657                 retlw   B'00000100'  ;538.581
+022B   3405           00658                 retlw   B'00000101'  ;535.727
+022C   3406           00659                 retlw   B'00000110'  ;532.872
+022D   3407           00660                 retlw   B'00000111'  ;530.018
+022E   3408           00661                 retlw   B'00001000'  ;527.163
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 14
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+022F   3409           00662                 retlw   B'00001001'  ;524.309
+0230   340A           00663                 retlw   B'00001010'  ;521.454
+0231   340B           00664                 retlw   B'00001011'  ;518.6
+0232   340C           00665                 retlw   B'00001100'  ;515.745
+0233   340D           00666                 retlw   B'00001101'  ;512.89
+0234   340E           00667                 retlw   B'00001110'  ;510.036
+0235   340F           00668                 retlw   B'00001111'  ;507.181
+0236   3410           00669                 retlw   B'00010000'  ;504.327
+0237   3411           00670                 retlw   B'00010001'  ;501.472
+0238   3412           00671                 retlw   B'00010010'  ;498.618
+0239   3413           00672                 retlw   B'00010011'  ;495.763
+023A   3414           00673                 retlw   B'00010100'  ;492.908
+023B   3415           00674                 retlw   B'00010101'  ;490.054
+023C   3416           00675                 retlw   B'00010110'  ;487.199
+023D   3417           00676                 retlw   B'00010111'  ;484.345
+023E   3418           00677                 retlw   B'00011000'  ;481.49
+023F   3419           00678                 retlw   B'00011001'  ;478.636
+0240   341A           00679                 retlw   B'00011010'  ;475.781
+0241   341B           00680                 retlw   B'00011011'  ;472.926
+0242   341C           00681                 retlw   B'00011100'  ;470.072
+0243   341D           00682                 retlw   B'00011101'  ;467.217
+0244   341E           00683                 retlw   B'00011110'  ;464.363
+0245   341F           00684                 retlw   B'00011111'  ;461.508
+0246   3420           00685                 retlw   B'00100000'  ;458.654
+0247   3421           00686                 retlw   B'00100001'  ;455.799
+0248   3422           00687                 retlw   B'00100010'  ;452.944
+0249   3423           00688                 retlw   B'00100011'  ;450.09
+024A   3424           00689                 retlw   B'00100100'  ;447.235
+024B   3425           00690                 retlw   B'00100101'  ;444.381
+024C   3426           00691                 retlw   B'00100110'  ;441.526
+024D   3427           00692                 retlw   B'00100111'  ;438.672
+024E   3428           00693                 retlw   B'00101000'  ;435.817
+024F   3429           00694                 retlw   B'00101001'  ;432.962
+0250   342A           00695                 retlw   B'00101010'  ;430.108
+0251   342B           00696                 retlw   B'00101011'  ;427.253
+0252   342C           00697                 retlw   B'00101100'  ;424.399
+0253   342D           00698                 retlw   B'00101101'  ;421.544
+0254   342E           00699                 retlw   B'00101110'  ;418.69
+0255   342F           00700                 retlw   B'00101111'  ;415.835
+0256   3430           00701                 retlw   B'00110000'  ;412.981
+0257   3431           00702                 retlw   B'00110001'  ;410.126
+0258   3432           00703                 retlw   B'00110010'  ;407.271
+0259   3433           00704                 retlw   B'00110011'  ;404.417
+025A   3434           00705                 retlw   B'00110100'  ;401.562
+025B   3435           00706                 retlw   B'00110101'  ;398.708
+025C   3436           00707                 retlw   B'00110110'  ;395.853
+025D   3437           00708                 retlw   B'00110111'  ;392.999
+025E   3438           00709                 retlw   B'00111000'  ;390.144
+025F   3439           00710                 retlw   B'00111001'  ;387.289
+0260   343A           00711                 retlw   B'00111010'  ;384.435
+0261   343B           00712                 retlw   B'00111011'  ;381.58
+0262   343C           00713                 retlw   B'00111100'  ;378.726
+0263   343D           00714                 retlw   B'00111101'  ;375.871
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 15
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0264   343E           00715                 retlw   B'00111110'  ;373.017
+0265   343F           00716                 retlw   B'00111111'  ;370.162
+0266   3440           00717                 retlw   B'01000000'  ;367.307
+0267   3441           00718                 retlw   B'01000001'  ;364.453
+0268   3442           00719                 retlw   B'01000010'  ;361.598
+0269   3443           00720                 retlw   B'01000011'  ;358.744
+026A   3444           00721                 retlw   B'01000100'  ;355.889
+026B   3445           00722                 retlw   B'01000101'  ;353.035
+026C   3446           00723                 retlw   B'01000110'  ;350.18
+026D   3447           00724                 retlw   B'01000111'  ;347.325
+026E   3448           00725                 retlw   B'01001000'  ;344.471
+026F   3449           00726                 retlw   B'01001001'  ;341.616
+0270   344A           00727                 retlw   B'01001010'  ;338.762
+0271   344B           00728                 retlw   B'01001011'  ;335.907
+0272   344C           00729                 retlw   B'01001100'  ;333.053
+0273   344D           00730                 retlw   B'01001101'  ;330.198
+0274   344E           00731                 retlw   B'01001110'  ;327.344
+0275   344F           00732                 retlw   B'01001111'  ;324.489
+0276   3450           00733                 retlw   B'01010000'  ;321.634
+0277   3451           00734                 retlw   B'01010001'  ;318.78
+0278   3452           00735                 retlw   B'01010010'  ;315.925
+0279   3453           00736                 retlw   B'01010011'  ;313.071
+027A   3454           00737                 retlw   B'01010100'  ;310.216
+027B   3455           00738                 retlw   B'01010101'  ;307.362
+027C   3456           00739                 retlw   B'01010110'  ;304.507
+027D   3457           00740                 retlw   B'01010111'  ;301.652
+027E   3458           00741                 retlw   B'01011000'  ;298.798
+027F   3459           00742                 retlw   B'01011001'  ;295.943
+0280   345A           00743                 retlw   B'01011010'  ;293.089
+0281   345B           00744                 retlw   B'01011011'  ;290.234
+0282   345C           00745                 retlw   B'01011100'  ;287.38
+0283   345D           00746                 retlw   B'01011101'  ;284.525
+0284   345E           00747                 retlw   B'01011110'  ;281.67
+0285   345F           00748                 retlw   B'01011111'  ;278.816
+0286   3460           00749                 retlw   B'01100000'  ;275.961
+0287   3461           00750                 retlw   B'01100001'  ;273.107
+0288   3462           00751                 retlw   B'01100010'  ;270.252
+0289   3463           00752                 retlw   B'01100011'  ;267.398
+028A   3464           00753                 retlw   B'01100100'  ;264.543
+028B   3465           00754                 retlw   B'01100101'  ;261.688
+028C   3466           00755                 retlw   B'01100110'  ;258.834
+028D   3467           00756                 retlw   B'01100111'  ;255.979
+028E   3468           00757                 retlw   B'01101000'  ;253.125
+028F   3469           00758                 retlw   B'01101001'  ;250.27
+0290   346A           00759                 retlw   B'01101010'  ;247.416
+0291   346B           00760                 retlw   B'01101011'  ;244.561
+0292   346C           00761                 retlw   B'01101100'  ;241.706
+0293   346D           00762                 retlw   B'01101101'  ;238.852
+0294   346E           00763                 retlw   B'01101110'  ;235.997
+0295   346F           00764                 retlw   B'01101111'  ;233.143
+0296   3470           00765                 retlw   B'01110000'  ;230.288
+0297   3471           00766                 retlw   B'01110001'  ;227.434
+0298   3472           00767                 retlw   B'01110010'  ;224.579
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 16
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0299   3473           00768                 retlw   B'01110011'  ;221.725
+029A   3474           00769                 retlw   B'01110100'  ;218.87
+029B   3475           00770                 retlw   B'01110101'  ;216.015
+029C   3476           00771                 retlw   B'01110110'  ;213.161
+029D   3477           00772                 retlw   B'01110111'  ;210.306
+029E   3478           00773                 retlw   B'01111000'  ;207.452
+029F   3479           00774                 retlw   B'01111001'  ;204.597
+02A0   347A           00775                 retlw   B'01111010'  ;201.743
+02A1   347B           00776                 retlw   B'01111011'  ;198.888
+02A2   347C           00777                 retlw   B'01111100'  ;196.033
+02A3   347D           00778                 retlw   B'01111101'  ;193.179
+02A4   347E           00779                 retlw   B'01111110'  ;190.324
+02A5   347F           00780                 retlw   B'01111111'  ;187.47
+02A6   3480           00781                 retlw   B'10000000'  ;184.615
+02A7   3481           00782                 retlw   B'10000001'  ;181.761
+02A8   3482           00783                 retlw   B'10000010'  ;178.906
+02A9   3483           00784                 retlw   B'10000011'  ;176.051
+02AA   3484           00785                 retlw   B'10000100'  ;173.197
+02AB   3485           00786                 retlw   B'10000101'  ;170.342
+02AC   3486           00787                 retlw   B'10000110'  ;167.488
+02AD   3487           00788                 retlw   B'10000111'  ;164.633
+02AE   3488           00789                 retlw   B'10001000'  ;161.779
+02AF   3489           00790                 retlw   B'10001001'  ;158.924
+02B0   348A           00791                 retlw   B'10001010'  ;156.069
+02B1   348B           00792                 retlw   B'10001011'  ;153.215
+02B2   348C           00793                 retlw   B'10001100'  ;150.36
+02B3   348D           00794                 retlw   B'10001101'  ;147.506
+02B4   348E           00795                 retlw   B'10001110'  ;144.651
+02B5   348F           00796                 retlw   B'10001111'  ;141.797
+02B6   3490           00797                 retlw   B'10010000'  ;138.942
+02B7   3491           00798                 retlw   B'10010001'  ;136.087
+02B8   3492           00799                 retlw   B'10010010'  ;133.233
+02B9   3493           00800                 retlw   B'10010011'  ;130.378
+02BA   3494           00801                 retlw   B'10010100'  ;127.524
+02BB   3495           00802                 retlw   B'10010101'  ;124.669
+02BC   3496           00803                 retlw   B'10010110'  ;121.815
+02BD   3497           00804                 retlw   B'10010111'  ;118.96
+02BE   3498           00805                 retlw   B'10011000'  ;116.106
+02BF   3499           00806                 retlw   B'10011001'  ;113.251
+02C0   349A           00807                 retlw   B'10011010'  ;110.396
+02C1   349B           00808                 retlw   B'10011011'  ;107.542
+02C2   349C           00809                 retlw   B'10011100'  ;104.687
+02C3   349D           00810                 retlw   B'10011101'  ;101.833
+02C4   349E           00811                 retlw   B'10011110'  ;98.9781
+02C5   349F           00812                 retlw   B'10011111'  ;96.1236
+02C6   34A0           00813                 retlw   B'10100000'  ;93.269
+02C7   34A1           00814                 retlw   B'10100001'  ;90.4144
+02C8   34A2           00815                 retlw   B'10100010'  ;87.5599
+02C9   34A3           00816                 retlw   B'10100011'  ;84.7053
+02CA   34A4           00817                 retlw   B'10100100'  ;81.8507
+02CB   34A5           00818                 retlw   B'10100101'  ;78.9962
+02CC   34A6           00819                 retlw   B'10100110'  ;76.1416
+02CD   34A7           00820                 retlw   B'10100111'  ;73.287
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 17
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+02CE   34A8           00821                 retlw   B'10101000'  ;70.4325
+02CF   34A9           00822                 retlw   B'10101001'  ;67.5779
+02D0   34AA           00823                 retlw   B'10101010'  ;64.7233
+02D1   34AB           00824                 retlw   B'10101011'  ;61.8687
+02D2   34AC           00825                 retlw   B'10101100'  ;59.0142
+02D3   34AD           00826                 retlw   B'10101101'  ;56.1596
+02D4   34AE           00827                 retlw   B'10101110'  ;53.305
+02D5   34AF           00828                 retlw   B'10101111'  ;50.4505
+02D6   34B0           00829                 retlw   B'10110000'  ;47.5959
+02D7   34B1           00830                 retlw   B'10110001'  ;44.7413
+02D8   34B2           00831                 retlw   B'10110010'  ;41.8868
+02D9   34B3           00832                 retlw   B'10110011'  ;39.0322
+02DA   34B4           00833                 retlw   B'10110100'  ;36.1776
+02DB   34B5           00834                 retlw   B'10110101'  ;33.3231
+02DC   34B6           00835                 retlw   B'10110110'  ;30.4685
+02DD   34B7           00836                 retlw   B'10110111'  ;27.6139
+02DE   34B8           00837                 retlw   B'10111000'  ;24.7594
+02DF   34B9           00838                 retlw   B'10111001'  ;21.9048
+02E0   34BA           00839                 retlw   B'10111010'  ;19.0502
+02E1   34BB           00840                 retlw   B'10111011'  ;16.1957
+02E2   34BC           00841                 retlw   B'10111100'  ;13.3411
+02E3   34BD           00842                 retlw   B'10111101'  ;10.4865
+02E4   34BE           00843                 retlw   B'10111110'  ;7.63197
+02E5   34BF           00844                 retlw   B'10111111'  ;4.7774
+02E6   34C0           00845                 retlw   B'11000000'  ;1.92284
+                      00846 
+                      00847 ;------------------------------------------------
+                      00848 
+02E7                  00849 LkUpHi
+02E7   0782           00850                 addwf   PCL,F
+02E8   3401           00851                 retlw   B'00000001'  ;1586.21
+02E9   3401           00852                 retlw   B'00000001'  ;1583.35
+02EA   3401           00853                 retlw   B'00000001'  ;1580.5
+02EB   3401           00854                 retlw   B'00000001'  ;1577.64
+02EC   3401           00855                 retlw   B'00000001'  ;1574.79
+02ED   3401           00856                 retlw   B'00000001'  ;1571.93
+02EE   3401           00857                 retlw   B'00000001'  ;1569.08
+02EF   3401           00858                 retlw   B'00000001'  ;1566.23
+02F0   3401           00859                 retlw   B'00000001'  ;1563.37
+02F1   3401           00860                 retlw   B'00000001'  ;1560.52
+02F2   3401           00861                 retlw   B'00000001'  ;1557.66
+02F3   3401           00862                 retlw   B'00000001'  ;1554.81
+02F4   3401           00863                 retlw   B'00000001'  ;1551.95
+02F5   3401           00864                 retlw   B'00000001'  ;1549.1
+02F6   3401           00865                 retlw   B'00000001'  ;1546.24
+02F7   3401           00866                 retlw   B'00000001'  ;1543.39
+02F8   3401           00867                 retlw   B'00000001'  ;1540.53
+02F9   3401           00868                 retlw   B'00000001'  ;1537.68
+02FA   3401           00869                 retlw   B'00000001'  ;1534.83
+02FB   3401           00870                 retlw   B'00000001'  ;1531.97
+02FC   3401           00871                 retlw   B'00000001'  ;1529.12
+02FD   3401           00872                 retlw   B'00000001'  ;1526.26
+02FE   3401           00873                 retlw   B'00000001'  ;1523.41
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 18
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+02FF   3401           00874                 retlw   B'00000001'  ;1520.55
+0300   3401           00875                 retlw   B'00000001'  ;1517.7
+0301   3401           00876                 retlw   B'00000001'  ;1514.84
+0302   3401           00877                 retlw   B'00000001'  ;1511.99
+0303   3401           00878                 retlw   B'00000001'  ;1509.13
+0304   3401           00879                 retlw   B'00000001'  ;1506.28
+0305   3401           00880                 retlw   B'00000001'  ;1503.43
+0306   3401           00881                 retlw   B'00000001'  ;1500.57
+0307   3401           00882                 retlw   B'00000001'  ;1497.72
+0308   3401           00883                 retlw   B'00000001'  ;1494.86
+0309   3401           00884                 retlw   B'00000001'  ;1492.01
+030A   3401           00885                 retlw   B'00000001'  ;1489.15
+030B   3401           00886                 retlw   B'00000001'  ;1486.3
+030C   3401           00887                 retlw   B'00000001'  ;1483.44
+030D   3401           00888                 retlw   B'00000001'  ;1480.59
+030E   3401           00889                 retlw   B'00000001'  ;1477.73
+030F   3401           00890                 retlw   B'00000001'  ;1474.88
+0310   3401           00891                 retlw   B'00000001'  ;1472.03
+0311   3401           00892                 retlw   B'00000001'  ;1469.17
+0312   3401           00893                 retlw   B'00000001'  ;1466.32
+0313   3401           00894                 retlw   B'00000001'  ;1463.46
+0314   3401           00895                 retlw   B'00000001'  ;1460.61
+0315   3401           00896                 retlw   B'00000001'  ;1457.75
+0316   3401           00897                 retlw   B'00000001'  ;1454.9
+0317   3401           00898                 retlw   B'00000001'  ;1452.04
+0318   3401           00899                 retlw   B'00000001'  ;1449.19
+0319   3401           00900                 retlw   B'00000001'  ;1446.33
+031A   3401           00901                 retlw   B'00000001'  ;1443.48
+031B   3401           00902                 retlw   B'00000001'  ;1440.62
+031C   3401           00903                 retlw   B'00000001'  ;1437.77
+031D   3401           00904                 retlw   B'00000001'  ;1434.92
+031E   3401           00905                 retlw   B'00000001'  ;1432.06
+031F   3401           00906                 retlw   B'00000001'  ;1429.21
+0320   3401           00907                 retlw   B'00000001'  ;1426.35
+0321   3401           00908                 retlw   B'00000001'  ;1423.5
+0322   3401           00909                 retlw   B'00000001'  ;1420.64
+0323   3401           00910                 retlw   B'00000001'  ;1417.79
+0324   3401           00911                 retlw   B'00000001'  ;1414.93
+0325   3401           00912                 retlw   B'00000001'  ;1412.08
+0326   3401           00913                 retlw   B'00000001'  ;1409.22
+0327   3401           00914                 retlw   B'00000001'  ;1406.37
+0328   3401           00915                 retlw   B'00000001'  ;1403.52
+0329   3401           00916                 retlw   B'00000001'  ;1400.66
+032A   3401           00917                 retlw   B'00000001'  ;1397.81
+032B   3401           00918                 retlw   B'00000001'  ;1394.95
+032C   3401           00919                 retlw   B'00000001'  ;1392.1
+032D   3401           00920                 retlw   B'00000001'  ;1389.24
+032E   3401           00921                 retlw   B'00000001'  ;1386.39
+032F   3401           00922                 retlw   B'00000001'  ;1383.53
+0330   3401           00923                 retlw   B'00000001'  ;1380.68
+0331   3401           00924                 retlw   B'00000001'  ;1377.82
+0332   3401           00925                 retlw   B'00000001'  ;1374.97
+0333   3401           00926                 retlw   B'00000001'  ;1372.12
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 19
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0334   3401           00927                 retlw   B'00000001'  ;1369.26
+0335   3401           00928                 retlw   B'00000001'  ;1366.41
+0336   3401           00929                 retlw   B'00000001'  ;1363.55
+0337   3401           00930                 retlw   B'00000001'  ;1360.7
+0338   3401           00931                 retlw   B'00000001'  ;1357.84
+0339   3401           00932                 retlw   B'00000001'  ;1354.99
+033A   3401           00933                 retlw   B'00000001'  ;1352.13
+033B   3401           00934                 retlw   B'00000001'  ;1349.28
+033C   3401           00935                 retlw   B'00000001'  ;1346.42
+033D   3401           00936                 retlw   B'00000001'  ;1343.57
+033E   3401           00937                 retlw   B'00000001'  ;1340.71
+033F   3401           00938                 retlw   B'00000001'  ;1337.86
+0340   3401           00939                 retlw   B'00000001'  ;1335.01
+0341   3401           00940                 retlw   B'00000001'  ;1332.15
+0342   3401           00941                 retlw   B'00000001'  ;1329.3
+0343   3401           00942                 retlw   B'00000001'  ;1326.44
+0344   3401           00943                 retlw   B'00000001'  ;1323.59
+0345   3401           00944                 retlw   B'00000001'  ;1320.73
+0346   3401           00945                 retlw   B'00000001'  ;1317.88
+0347   3401           00946                 retlw   B'00000001'  ;1315.02
+0348   3401           00947                 retlw   B'00000001'  ;1312.17
+0349   3401           00948                 retlw   B'00000001'  ;1309.31
+034A   3401           00949                 retlw   B'00000001'  ;1306.46
+034B   3401           00950                 retlw   B'00000001'  ;1303.61
+034C   3401           00951                 retlw   B'00000001'  ;1300.75
+034D   3401           00952                 retlw   B'00000001'  ;1297.9
+034E   3401           00953                 retlw   B'00000001'  ;1295.04
+034F   3401           00954                 retlw   B'00000001'  ;1292.19
+0350   3401           00955                 retlw   B'00000001'  ;1289.33
+0351   3401           00956                 retlw   B'00000001'  ;1286.48
+0352   3401           00957                 retlw   B'00000001'  ;1283.62
+0353   3402           00958                 retlw   B'00000010'  ;1280.77
+0354   3402           00959                 retlw   B'00000010'  ;1277.91
+0355   3402           00960                 retlw   B'00000010'  ;1275.06
+0356   3402           00961                 retlw   B'00000010'  ;1272.21
+0357   3402           00962                 retlw   B'00000010'  ;1269.35
+0358   3402           00963                 retlw   B'00000010'  ;1266.5
+0359   3402           00964                 retlw   B'00000010'  ;1263.64
+035A   3402           00965                 retlw   B'00000010'  ;1260.79
+035B   3402           00966                 retlw   B'00000010'  ;1257.93
+035C   3402           00967                 retlw   B'00000010'  ;1255.08
+035D   3402           00968                 retlw   B'00000010'  ;1252.22
+035E   3402           00969                 retlw   B'00000010'  ;1249.37
+035F   3402           00970                 retlw   B'00000010'  ;1246.51
+0360   3402           00971                 retlw   B'00000010'  ;1243.66
+0361   3402           00972                 retlw   B'00000010'  ;1240.81
+0362   3402           00973                 retlw   B'00000010'  ;1237.95
+0363   3402           00974                 retlw   B'00000010'  ;1235.1
+0364   3402           00975                 retlw   B'00000010'  ;1232.24
+0365   3402           00976                 retlw   B'00000010'  ;1229.39
+0366   3402           00977                 retlw   B'00000010'  ;1226.53
+0367   3402           00978                 retlw   B'00000010'  ;1223.68
+0368   3402           00979                 retlw   B'00000010'  ;1220.82
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 20
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0369   3402           00980                 retlw   B'00000010'  ;1217.97
+036A   3402           00981                 retlw   B'00000010'  ;1215.11
+036B   3402           00982                 retlw   B'00000010'  ;1212.26
+036C   3402           00983                 retlw   B'00000010'  ;1209.4
+036D   3402           00984                 retlw   B'00000010'  ;1206.55
+036E   3402           00985                 retlw   B'00000010'  ;1203.7
+036F   3402           00986                 retlw   B'00000010'  ;1200.84
+0370   3402           00987                 retlw   B'00000010'  ;1197.99
+0371   3402           00988                 retlw   B'00000010'  ;1195.13
+0372   3402           00989                 retlw   B'00000010'  ;1192.28
+0373   3402           00990                 retlw   B'00000010'  ;1189.42
+0374   3402           00991                 retlw   B'00000010'  ;1186.57
+0375   3402           00992                 retlw   B'00000010'  ;1183.71
+0376   3402           00993                 retlw   B'00000010'  ;1180.86
+0377   3402           00994                 retlw   B'00000010'  ;1178
+0378   3402           00995                 retlw   B'00000010'  ;1175.15
+0379   3402           00996                 retlw   B'00000010'  ;1172.3
+037A   3402           00997                 retlw   B'00000010'  ;1169.44
+037B   3402           00998                 retlw   B'00000010'  ;1166.59
+037C   3402           00999                 retlw   B'00000010'  ;1163.73
+037D   3402           01000                 retlw   B'00000010'  ;1160.88
+037E   3402           01001                 retlw   B'00000010'  ;1158.02
+037F   3402           01002                 retlw   B'00000010'  ;1155.17
+0380   3402           01003                 retlw   B'00000010'  ;1152.31
+0381   3402           01004                 retlw   B'00000010'  ;1149.46
+0382   3402           01005                 retlw   B'00000010'  ;1146.6
+0383   3402           01006                 retlw   B'00000010'  ;1143.75
+0384   3402           01007                 retlw   B'00000010'  ;1140.9
+0385   3402           01008                 retlw   B'00000010'  ;1138.04
+0386   3402           01009                 retlw   B'00000010'  ;1135.19
+0387   3402           01010                 retlw   B'00000010'  ;1132.33
+0388   3402           01011                 retlw   B'00000010'  ;1129.48
+0389   3402           01012                 retlw   B'00000010'  ;1126.62
+038A   3402           01013                 retlw   B'00000010'  ;1123.77
+038B   3402           01014                 retlw   B'00000010'  ;1120.91
+038C   3402           01015                 retlw   B'00000010'  ;1118.06
+038D   3402           01016                 retlw   B'00000010'  ;1115.2
+038E   3402           01017                 retlw   B'00000010'  ;1112.35
+038F   3402           01018                 retlw   B'00000010'  ;1109.49
+0390   3402           01019                 retlw   B'00000010'  ;1106.64
+0391   3402           01020                 retlw   B'00000010'  ;1103.79
+0392   3402           01021                 retlw   B'00000010'  ;1100.93
+0393   3402           01022                 retlw   B'00000010'  ;1098.08
+0394   3402           01023                 retlw   B'00000010'  ;1095.22
+0395   3402           01024                 retlw   B'00000010'  ;1092.37
+0396   3402           01025                 retlw   B'00000010'  ;1089.51
+0397   3402           01026                 retlw   B'00000010'  ;1086.66
+0398   3402           01027                 retlw   B'00000010'  ;1083.8
+0399   3402           01028                 retlw   B'00000010'  ;1080.95
+039A   3402           01029                 retlw   B'00000010'  ;1078.09
+039B   3402           01030                 retlw   B'00000010'  ;1075.24
+039C   3402           01031                 retlw   B'00000010'  ;1072.39
+039D   3402           01032                 retlw   B'00000010'  ;1069.53
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 21
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+039E   3402           01033                 retlw   B'00000010'  ;1066.68
+039F   3402           01034                 retlw   B'00000010'  ;1063.82
+03A0   3402           01035                 retlw   B'00000010'  ;1060.97
+03A1   3402           01036                 retlw   B'00000010'  ;1058.11
+03A2   3402           01037                 retlw   B'00000010'  ;1055.26
+03A3   3402           01038                 retlw   B'00000010'  ;1052.4
+03A4   3402           01039                 retlw   B'00000010'  ;1049.55
+03A5   3402           01040                 retlw   B'00000010'  ;1046.69
+03A6   3402           01041                 retlw   B'00000010'  ;1043.84
+03A7   3402           01042                 retlw   B'00000010'  ;1040.99
+03A8   3402           01043                 retlw   B'00000010'  ;1038.13
+03A9   3402           01044                 retlw   B'00000010'  ;1035.28
+03AA   3402           01045                 retlw   B'00000010'  ;1032.42
+03AB   3402           01046                 retlw   B'00000010'  ;1029.57
+03AC   3402           01047                 retlw   B'00000010'  ;1026.71
+03AD   3402           01048                 retlw   B'00000010'  ;1023.86
+03AE   3402           01049                 retlw   B'00000010'  ;1021
+03AF   3402           01050                 retlw   B'00000010'  ;1018.15
+03B0   3402           01051                 retlw   B'00000010'  ;1015.29
+03B1   3402           01052                 retlw   B'00000010'  ;1012.44
+03B2   3402           01053                 retlw   B'00000010'  ;1009.59
+03B3   3402           01054                 retlw   B'00000010'  ;1006.73
+03B4   3402           01055                 retlw   B'00000010'  ;1003.88
+03B5   3402           01056                 retlw   B'00000010'  ;1001.02
+03B6   3402           01057                 retlw   B'00000010'  ;998.167
+03B7   3402           01058                 retlw   B'00000010'  ;995.312
+03B8   3402           01059                 retlw   B'00000010'  ;992.458
+03B9   3402           01060                 retlw   B'00000010'  ;989.603
+03BA   3402           01061                 retlw   B'00000010'  ;986.749
+03BB   3402           01062                 retlw   B'00000010'  ;983.894
+03BC   3402           01063                 retlw   B'00000010'  ;981.039
+03BD   3402           01064                 retlw   B'00000010'  ;978.185
+03BE   3402           01065                 retlw   B'00000010'  ;975.33
+03BF   3402           01066                 retlw   B'00000010'  ;972.476
+03C0   3402           01067                 retlw   B'00000010'  ;969.621
+03C1   3402           01068                 retlw   B'00000010'  ;966.767
+03C2   3402           01069                 retlw   B'00000010'  ;963.912
+03C3   3402           01070                 retlw   B'00000010'  ;961.057
+03C4   3402           01071                 retlw   B'00000010'  ;958.203
+03C5   3402           01072                 retlw   B'00000010'  ;955.348
+03C6   3402           01073                 retlw   B'00000010'  ;952.494
+03C7   3402           01074                 retlw   B'00000010'  ;949.639
+03C8   3402           01075                 retlw   B'00000010'  ;946.785
+03C9   3402           01076                 retlw   B'00000010'  ;943.93
+03CA   3402           01077                 retlw   B'00000010'  ;941.075
+03CB   3402           01078                 retlw   B'00000010'  ;938.221
+03CC   3402           01079                 retlw   B'00000010'  ;935.366
+03CD   3402           01080                 retlw   B'00000010'  ;932.512
+03CE   3402           01081                 retlw   B'00000010'  ;929.657
+03CF   3402           01082                 retlw   B'00000010'  ;926.803
+03D0   3402           01083                 retlw   B'00000010'  ;923.948
+03D1   3402           01084                 retlw   B'00000010'  ;921.094
+03D2   3402           01085                 retlw   B'00000010'  ;918.239
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 22
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+03D3   3402           01086                 retlw   B'00000010'  ;915.384
+03D4   3402           01087                 retlw   B'00000010'  ;912.53
+03D5   3402           01088                 retlw   B'00000010'  ;909.675
+03D6   3402           01089                 retlw   B'00000010'  ;906.821
+03D7   3402           01090                 retlw   B'00000010'  ;903.966
+03D8   3402           01091                 retlw   B'00000010'  ;901.112
+03D9   3402           01092                 retlw   B'00000010'  ;898.257
+03DA   3402           01093                 retlw   B'00000010'  ;895.402
+03DB   3402           01094                 retlw   B'00000010'  ;892.548
+03DC   3402           01095                 retlw   B'00000010'  ;889.693
+03DD   3402           01096                 retlw   B'00000010'  ;886.839
+03DE   3402           01097                 retlw   B'00000010'  ;883.984
+03DF   3402           01098                 retlw   B'00000010'  ;881.13
+03E0   3402           01099                 retlw   B'00000010'  ;878.275
+03E1   3402           01100                 retlw   B'00000010'  ;875.42
+03E2   3402           01101                 retlw   B'00000010'  ;872.566
+03E3   3402           01102                 retlw   B'00000010'  ;869.711
+03E4   3402           01103                 retlw   B'00000010'  ;866.857
+03E5   3402           01104                 retlw   B'00000010'  ;864.002
+03E6   3402           01105                 retlw   B'00000010'  ;861.148
+03E7   3402           01106                 retlw   B'00000010'  ;858.293
+03E8   3402           01107                 retlw   B'00000010'  ;855.438
+03E9   3402           01108                 retlw   B'00000010'  ;852.584
+03EA   3402           01109                 retlw   B'00000010'  ;849.729
+03EB   3402           01110                 retlw   B'00000010'  ;846.875
+03EC   3402           01111                 retlw   B'00000010'  ;844.02
+03ED   3402           01112                 retlw   B'00000010'  ;841.166
+03EE   3402           01113                 retlw   B'00000010'  ;838.311
+03EF   3402           01114                 retlw   B'00000010'  ;835.456
+03F0   3402           01115                 retlw   B'00000010'  ;832.602
+03F1   3402           01116                 retlw   B'00000010'  ;829.747
+03F2   3402           01117                 retlw   B'00000010'  ;826.893
+03F3   3402           01118                 retlw   B'00000010'  ;824.038
+03F4   3402           01119                 retlw   B'00000010'  ;821.184
+03F5   3402           01120                 retlw   B'00000010'  ;818.329
+03F6   3402           01121                 retlw   B'00000010'  ;815.475
+03F7   3402           01122                 retlw   B'00000010'  ;812.62
+03F8   3402           01123                 retlw   B'00000010'  ;809.765
+03F9   3402           01124                 retlw   B'00000010'  ;806.911
+03FA   3402           01125                 retlw   B'00000010'  ;804.056
+03FB   3402           01126                 retlw   B'00000010'  ;801.202
+03FC   3402           01127                 retlw   B'00000010'  ;798.347
+03FD   3402           01128                 retlw   B'00000010'  ;795.493
+03FE   3402           01129                 retlw   B'00000010'  ;792.638
+03FF   3402           01130                 retlw   B'00000010'  ;789.783
+0400   3402           01131                 retlw   B'00000010'  ;786.929
+0401   3402           01132                 retlw   B'00000010'  ;784.074
+0402   3402           01133                 retlw   B'00000010'  ;781.22
+0403   3402           01134                 retlw   B'00000010'  ;778.365
+0404   3402           01135                 retlw   B'00000010'  ;775.511
+0405   3402           01136                 retlw   B'00000010'  ;772.656
+0406   3402           01137                 retlw   B'00000010'  ;769.801
+0407   3402           01138                 retlw   B'00000010'  ;766.947
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 23
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0408   3402           01139                 retlw   B'00000010'  ;764.092
+0409   3402           01140                 retlw   B'00000010'  ;761.238
+040A   3402           01141                 retlw   B'00000010'  ;758.383
+040B   3402           01142                 retlw   B'00000010'  ;755.529
+040C   3402           01143                 retlw   B'00000010'  ;752.674
+040D   3402           01144                 retlw   B'00000010'  ;749.819
+040E   3402           01145                 retlw   B'00000010'  ;746.965
+040F   3402           01146                 retlw   B'00000010'  ;744.11
+0410   3402           01147                 retlw   B'00000010'  ;741.256
+0411   3402           01148                 retlw   B'00000010'  ;738.401
+0412   3402           01149                 retlw   B'00000010'  ;735.547
+0413   3402           01150                 retlw   B'00000010'  ;732.692
+0414   3402           01151                 retlw   B'00000010'  ;729.837
+0415   3402           01152                 retlw   B'00000010'  ;726.983
+0416   3402           01153                 retlw   B'00000010'  ;724.128
+0417   3402           01154                 retlw   B'00000010'  ;721.274
+0418   3402           01155                 retlw   B'00000010'  ;718.419
+0419   3402           01156                 retlw   B'00000010'  ;715.565
+041A   3402           01157                 retlw   B'00000010'  ;712.71
+041B   3402           01158                 retlw   B'00000010'  ;709.856
+041C   3402           01159                 retlw   B'00000010'  ;707.001
+041D   3402           01160                 retlw   B'00000010'  ;704.146
+041E   3402           01161                 retlw   B'00000010'  ;701.292
+041F   3402           01162                 retlw   B'00000010'  ;698.437
+0420   3402           01163                 retlw   B'00000010'  ;695.583
+0421   3402           01164                 retlw   B'00000010'  ;692.728
+0422   3402           01165                 retlw   B'00000010'  ;689.874
+0423   3402           01166                 retlw   B'00000010'  ;687.019
+0424   3402           01167                 retlw   B'00000010'  ;684.164
+0425   3402           01168                 retlw   B'00000010'  ;681.31
+0426   3402           01169                 retlw   B'00000010'  ;678.455
+0427   3402           01170                 retlw   B'00000010'  ;675.601
+0428   3402           01171                 retlw   B'00000010'  ;672.746
+0429   3402           01172                 retlw   B'00000010'  ;669.892
+042A   3402           01173                 retlw   B'00000010'  ;667.037
+042B   3402           01174                 retlw   B'00000010'  ;664.182
+042C   3402           01175                 retlw   B'00000010'  ;661.328
+042D   3402           01176                 retlw   B'00000010'  ;658.473
+042E   3402           01177                 retlw   B'00000010'  ;655.619
+042F   3402           01178                 retlw   B'00000010'  ;652.764
+0430   3402           01179                 retlw   B'00000010'  ;649.91
+0431   3402           01180                 retlw   B'00000010'  ;647.055
+0432   3402           01181                 retlw   B'00000010'  ;644.2
+0433   3402           01182                 retlw   B'00000010'  ;641.346
+0434   3402           01183                 retlw   B'00000010'  ;638.491
+0435   3402           01184                 retlw   B'00000010'  ;635.637
+0436   3402           01185                 retlw   B'00000010'  ;632.782
+0437   3402           01186                 retlw   B'00000010'  ;629.928
+0438   3402           01187                 retlw   B'00000010'  ;627.073
+0439   3402           01188                 retlw   B'00000010'  ;624.219
+043A   3402           01189                 retlw   B'00000010'  ;621.364
+043B   3402           01190                 retlw   B'00000010'  ;618.509
+043C   3402           01191                 retlw   B'00000010'  ;615.655
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 24
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+043D   3402           01192                 retlw   B'00000010'  ;612.8
+043E   3402           01193                 retlw   B'00000010'  ;609.946
+043F   3402           01194                 retlw   B'00000010'  ;607.091
+0440   3402           01195                 retlw   B'00000010'  ;604.237
+0441   3402           01196                 retlw   B'00000010'  ;601.382
+0442   3402           01197                 retlw   B'00000010'  ;598.527
+0443   3402           01198                 retlw   B'00000010'  ;595.673
+0444   3402           01199                 retlw   B'00000010'  ;592.818
+0445   3402           01200                 retlw   B'00000010'  ;589.964
+0446   3402           01201                 retlw   B'00000010'  ;587.109
+0447   3402           01202                 retlw   B'00000010'  ;584.255
+0448   3402           01203                 retlw   B'00000010'  ;581.4
+0449   3402           01204                 retlw   B'00000010'  ;578.545
+044A   3402           01205                 retlw   B'00000010'  ;575.691
+044B   3402           01206                 retlw   B'00000010'  ;572.836
+044C   3402           01207                 retlw   B'00000010'  ;569.982
+044D   3402           01208                 retlw   B'00000010'  ;567.127
+044E   3402           01209                 retlw   B'00000010'  ;564.273
+044F   3402           01210                 retlw   B'00000010'  ;561.418
+0450   3402           01211                 retlw   B'00000010'  ;558.563
+0451   3402           01212                 retlw   B'00000010'  ;555.709
+0452   3402           01213                 retlw   B'00000010'  ;552.854
+0453   3403           01214                 retlw   B'00000011'  ;550
+0454   3403           01215                 retlw   B'00000011'  ;547.145
+0455   3403           01216                 retlw   B'00000011'  ;544.291
+0456   3403           01217                 retlw   B'00000011'  ;541.436
+0457   3403           01218                 retlw   B'00000011'  ;538.581
+0458   3403           01219                 retlw   B'00000011'  ;535.727
+0459   3403           01220                 retlw   B'00000011'  ;532.872
+045A   3403           01221                 retlw   B'00000011'  ;530.018
+045B   3403           01222                 retlw   B'00000011'  ;527.163
+045C   3403           01223                 retlw   B'00000011'  ;524.309
+045D   3403           01224                 retlw   B'00000011'  ;521.454
+045E   3403           01225                 retlw   B'00000011'  ;518.6
+045F   3403           01226                 retlw   B'00000011'  ;515.745
+0460   3403           01227                 retlw   B'00000011'  ;512.89
+0461   3403           01228                 retlw   B'00000011'  ;510.036
+0462   3403           01229                 retlw   B'00000011'  ;507.181
+0463   3403           01230                 retlw   B'00000011'  ;504.327
+0464   3403           01231                 retlw   B'00000011'  ;501.472
+0465   3403           01232                 retlw   B'00000011'  ;498.618
+0466   3403           01233                 retlw   B'00000011'  ;495.763
+0467   3403           01234                 retlw   B'00000011'  ;492.908
+0468   3403           01235                 retlw   B'00000011'  ;490.054
+0469   3403           01236                 retlw   B'00000011'  ;487.199
+046A   3403           01237                 retlw   B'00000011'  ;484.345
+046B   3403           01238                 retlw   B'00000011'  ;481.49
+046C   3403           01239                 retlw   B'00000011'  ;478.636
+046D   3403           01240                 retlw   B'00000011'  ;475.781
+046E   3403           01241                 retlw   B'00000011'  ;472.926
+046F   3403           01242                 retlw   B'00000011'  ;470.072
+0470   3403           01243                 retlw   B'00000011'  ;467.217
+0471   3403           01244                 retlw   B'00000011'  ;464.363
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 25
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0472   3403           01245                 retlw   B'00000011'  ;461.508
+0473   3403           01246                 retlw   B'00000011'  ;458.654
+0474   3403           01247                 retlw   B'00000011'  ;455.799
+0475   3403           01248                 retlw   B'00000011'  ;452.944
+0476   3403           01249                 retlw   B'00000011'  ;450.09
+0477   3403           01250                 retlw   B'00000011'  ;447.235
+0478   3403           01251                 retlw   B'00000011'  ;444.381
+0479   3403           01252                 retlw   B'00000011'  ;441.526
+047A   3403           01253                 retlw   B'00000011'  ;438.672
+047B   3403           01254                 retlw   B'00000011'  ;435.817
+047C   3403           01255                 retlw   B'00000011'  ;432.962
+047D   3403           01256                 retlw   B'00000011'  ;430.108
+047E   3403           01257                 retlw   B'00000011'  ;427.253
+047F   3403           01258                 retlw   B'00000011'  ;424.399
+0480   3403           01259                 retlw   B'00000011'  ;421.544
+0481   3403           01260                 retlw   B'00000011'  ;418.69
+0482   3403           01261                 retlw   B'00000011'  ;415.835
+0483   3403           01262                 retlw   B'00000011'  ;412.981
+0484   3403           01263                 retlw   B'00000011'  ;410.126
+0485   3403           01264                 retlw   B'00000011'  ;407.271
+0486   3403           01265                 retlw   B'00000011'  ;404.417
+0487   3403           01266                 retlw   B'00000011'  ;401.562
+0488   3403           01267                 retlw   B'00000011'  ;398.708
+0489   3403           01268                 retlw   B'00000011'  ;395.853
+048A   3403           01269                 retlw   B'00000011'  ;392.999
+048B   3403           01270                 retlw   B'00000011'  ;390.144
+048C   3403           01271                 retlw   B'00000011'  ;387.289
+048D   3403           01272                 retlw   B'00000011'  ;384.435
+048E   3403           01273                 retlw   B'00000011'  ;381.58
+048F   3403           01274                 retlw   B'00000011'  ;378.726
+0490   3403           01275                 retlw   B'00000011'  ;375.871
+0491   3403           01276                 retlw   B'00000011'  ;373.017
+0492   3403           01277                 retlw   B'00000011'  ;370.162
+0493   3403           01278                 retlw   B'00000011'  ;367.307
+0494   3403           01279                 retlw   B'00000011'  ;364.453
+0495   3403           01280                 retlw   B'00000011'  ;361.598
+0496   3403           01281                 retlw   B'00000011'  ;358.744
+0497   3403           01282                 retlw   B'00000011'  ;355.889
+0498   3403           01283                 retlw   B'00000011'  ;353.035
+0499   3403           01284                 retlw   B'00000011'  ;350.18
+049A   3403           01285                 retlw   B'00000011'  ;347.325
+049B   3403           01286                 retlw   B'00000011'  ;344.471
+049C   3403           01287                 retlw   B'00000011'  ;341.616
+049D   3403           01288                 retlw   B'00000011'  ;338.762
+049E   3403           01289                 retlw   B'00000011'  ;335.907
+049F   3403           01290                 retlw   B'00000011'  ;333.053
+04A0   3403           01291                 retlw   B'00000011'  ;330.198
+04A1   3403           01292                 retlw   B'00000011'  ;327.344
+04A2   3403           01293                 retlw   B'00000011'  ;324.489
+04A3   3403           01294                 retlw   B'00000011'  ;321.634
+04A4   3403           01295                 retlw   B'00000011'  ;318.78
+04A5   3403           01296                 retlw   B'00000011'  ;315.925
+04A6   3403           01297                 retlw   B'00000011'  ;313.071
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 26
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+04A7   3403           01298                 retlw   B'00000011'  ;310.216
+04A8   3403           01299                 retlw   B'00000011'  ;307.362
+04A9   3403           01300                 retlw   B'00000011'  ;304.507
+04AA   3403           01301                 retlw   B'00000011'  ;301.652
+04AB   3403           01302                 retlw   B'00000011'  ;298.798
+04AC   3403           01303                 retlw   B'00000011'  ;295.943
+04AD   3403           01304                 retlw   B'00000011'  ;293.089
+04AE   3403           01305                 retlw   B'00000011'  ;290.234
+04AF   3403           01306                 retlw   B'00000011'  ;287.38
+04B0   3403           01307                 retlw   B'00000011'  ;284.525
+04B1   3403           01308                 retlw   B'00000011'  ;281.67
+04B2   3403           01309                 retlw   B'00000011'  ;278.816
+04B3   3403           01310                 retlw   B'00000011'  ;275.961
+04B4   3403           01311                 retlw   B'00000011'  ;273.107
+04B5   3403           01312                 retlw   B'00000011'  ;270.252
+04B6   3403           01313                 retlw   B'00000011'  ;267.398
+04B7   3403           01314                 retlw   B'00000011'  ;264.543
+04B8   3403           01315                 retlw   B'00000011'  ;261.688
+04B9   3403           01316                 retlw   B'00000011'  ;258.834
+04BA   3403           01317                 retlw   B'00000011'  ;255.979
+04BB   3403           01318                 retlw   B'00000011'  ;253.125
+04BC   3403           01319                 retlw   B'00000011'  ;250.27
+04BD   3403           01320                 retlw   B'00000011'  ;247.416
+04BE   3403           01321                 retlw   B'00000011'  ;244.561
+04BF   3403           01322                 retlw   B'00000011'  ;241.706
+04C0   3403           01323                 retlw   B'00000011'  ;238.852
+04C1   3403           01324                 retlw   B'00000011'  ;235.997
+04C2   3403           01325                 retlw   B'00000011'  ;233.143
+04C3   3403           01326                 retlw   B'00000011'  ;230.288
+04C4   3403           01327                 retlw   B'00000011'  ;227.434
+04C5   3403           01328                 retlw   B'00000011'  ;224.579
+04C6   3403           01329                 retlw   B'00000011'  ;221.725
+04C7   3403           01330                 retlw   B'00000011'  ;218.87
+04C8   3403           01331                 retlw   B'00000011'  ;216.015
+04C9   3403           01332                 retlw   B'00000011'  ;213.161
+04CA   3403           01333                 retlw   B'00000011'  ;210.306
+04CB   3403           01334                 retlw   B'00000011'  ;207.452
+04CC   3403           01335                 retlw   B'00000011'  ;204.597
+04CD   3403           01336                 retlw   B'00000011'  ;201.743
+04CE   3403           01337                 retlw   B'00000011'  ;198.888
+04CF   3403           01338                 retlw   B'00000011'  ;196.033
+04D0   3403           01339                 retlw   B'00000011'  ;193.179
+04D1   3403           01340                 retlw   B'00000011'  ;190.324
+04D2   3403           01341                 retlw   B'00000011'  ;187.47
+04D3   3403           01342                 retlw   B'00000011'  ;184.615
+04D4   3403           01343                 retlw   B'00000011'  ;181.761
+04D5   3403           01344                 retlw   B'00000011'  ;178.906
+04D6   3403           01345                 retlw   B'00000011'  ;176.051
+04D7   3403           01346                 retlw   B'00000011'  ;173.197
+04D8   3403           01347                 retlw   B'00000011'  ;170.342
+04D9   3403           01348                 retlw   B'00000011'  ;167.488
+04DA   3403           01349                 retlw   B'00000011'  ;164.633
+04DB   3403           01350                 retlw   B'00000011'  ;161.779
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 27
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+04DC   3403           01351                 retlw   B'00000011'  ;158.924
+04DD   3403           01352                 retlw   B'00000011'  ;156.069
+04DE   3403           01353                 retlw   B'00000011'  ;153.215
+04DF   3403           01354                 retlw   B'00000011'  ;150.36
+04E0   3403           01355                 retlw   B'00000011'  ;147.506
+04E1   3403           01356                 retlw   B'00000011'  ;144.651
+04E2   3403           01357                 retlw   B'00000011'  ;141.797
+04E3   3403           01358                 retlw   B'00000011'  ;138.942
+04E4   3403           01359                 retlw   B'00000011'  ;136.087
+04E5   3403           01360                 retlw   B'00000011'  ;133.233
+04E6   3403           01361                 retlw   B'00000011'  ;130.378
+04E7   3403           01362                 retlw   B'00000011'  ;127.524
+04E8   3403           01363                 retlw   B'00000011'  ;124.669
+04E9   3403           01364                 retlw   B'00000011'  ;121.815
+04EA   3403           01365                 retlw   B'00000011'  ;118.96
+04EB   3403           01366                 retlw   B'00000011'  ;116.106
+04EC   3403           01367                 retlw   B'00000011'  ;113.251
+04ED   3403           01368                 retlw   B'00000011'  ;110.396
+04EE   3403           01369                 retlw   B'00000011'  ;107.542
+04EF   3403           01370                 retlw   B'00000011'  ;104.687
+04F0   3403           01371                 retlw   B'00000011'  ;101.833
+04F1   3403           01372                 retlw   B'00000011'  ;98.9781
+04F2   3403           01373                 retlw   B'00000011'  ;96.1236
+04F3   3403           01374                 retlw   B'00000011'  ;93.269
+04F4   3403           01375                 retlw   B'00000011'  ;90.4144
+04F5   3403           01376                 retlw   B'00000011'  ;87.5599
+04F6   3403           01377                 retlw   B'00000011'  ;84.7053
+04F7   3403           01378                 retlw   B'00000011'  ;81.8507
+04F8   3403           01379                 retlw   B'00000011'  ;78.9962
+04F9   3403           01380                 retlw   B'00000011'  ;76.1416
+04FA   3403           01381                 retlw   B'00000011'  ;73.287
+04FB   3403           01382                 retlw   B'00000011'  ;70.4325
+04FC   3403           01383                 retlw   B'00000011'  ;67.5779
+04FD   3403           01384                 retlw   B'00000011'  ;64.7233
+04FE   3403           01385                 retlw   B'00000011'  ;61.8687
+04FF   3403           01386                 retlw   B'00000011'  ;59.0142
+0500   3403           01387                 retlw   B'00000011'  ;56.1596
+0501   3403           01388                 retlw   B'00000011'  ;53.305
+0502   3403           01389                 retlw   B'00000011'  ;50.4505
+0503   3403           01390                 retlw   B'00000011'  ;47.5959
+0504   3403           01391                 retlw   B'00000011'  ;44.7413
+0505   3403           01392                 retlw   B'00000011'  ;41.8868
+0506   3403           01393                 retlw   B'00000011'  ;39.0322
+0507   3403           01394                 retlw   B'00000011'  ;36.1776
+0508   3403           01395                 retlw   B'00000011'  ;33.3231
+0509   3403           01396                 retlw   B'00000011'  ;30.4685
+050A   3403           01397                 retlw   B'00000011'  ;27.6139
+050B   3403           01398                 retlw   B'00000011'  ;24.7594
+050C   3403           01399                 retlw   B'00000011'  ;21.9048
+050D   3403           01400                 retlw   B'00000011'  ;19.0502
+050E   3403           01401                 retlw   B'00000011'  ;16.1957
+050F   3403           01402                 retlw   B'00000011'  ;13.3411
+0510   3403           01403                 retlw   B'00000011'  ;10.4865
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 28
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0511   3403           01404                 retlw   B'00000011'  ;7.63197
+0512   3403           01405                 retlw   B'00000011'  ;4.7774
+0513   3403           01406                 retlw   B'00000011'  ;1.92284
+                      01407 
+                      01408                 END
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 29
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+ACKDT                             00000005
+ACKEN                             00000004
+ACKSTAT                           00000006
+ADCON0                            0000001F
+ADCON1                            0000009F
+ADCS0                             00000006
+ADCS1                             00000007
+ADConversion                      0000002E
+ADDEN                             00000003
+ADFM                              00000007
+ADIE                              00000006
+ADIF                              00000006
+ADON                              00000000
+ADRESH                            0000001E
+ADRESL                            0000009E
+BCDdigits                         00000069
+BCDhi                             00000025
+BCDlo                             00000026
+BCDup                             00000027
+BCLIE                             00000003
+BCLIF                             00000003
+BF                                00000000
+BRGH                              00000002
+C                                 00000000
+CCP1CON                           00000017
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1X                             00000005
+CCP1Y                             00000004
+CCP2CON                           0000001D
+CCP2IE                            00000000
+CCP2IF                            00000000
+CCP2M0                            00000000
+CCP2M1                            00000001
+CCP2M2                            00000002
+CCP2M3                            00000003
+CCP2X                             00000005
+CCP2Y                             00000004
+CCPR1                             00000015
+CCPR1H                            00000016
+CCPR1L                            00000015
+CCPR2                             0000001B
+CCPR2H                            0000001C
+CCPR2L                            0000001B
+CHS0                              00000003
+CHS1                              00000004
+CHS2                              00000005
+CKE                               00000006
+CKP                               00000004
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 30
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CREN                              00000004
+CSRC                              00000007
+D                                 00000005
+DATA_ADDRESS                      00000005
+DC                                00000001
+D_A                               00000005
+D_NOT_A                           00000005
+EEADR                             0000010D
+EEADRH                            0000010F
+EECON1                            0000018C
+EECON2                            0000018D
+EEDATA                            0000010C
+EEDATH                            0000010E
+EEIE                              00000004
+EEIF                              00000004
+EEPGD                             00000007
+F                                 00000001
+FERR                              00000002
+FSR                               00000004
+GCEN                              00000007
+GIE                               00000007
+GO                                00000002
+GO_DONE                           00000002
+GO_NOT_DONE                       00000002
+I2C_DATA                          00000005
+I2C_READ                          00000002
+I2C_START                         00000003
+I2C_STOP                          00000004
+IBF                               00000007
+IBOV                              00000005
+INDF                              00000000
+INTCON                            0000000B
+INTE                              00000004
+INTEDG                            00000006
+INTF                              00000001
+IRP                               00000007
+LkUpHi                            000002E7
+LkUpLo                            000000BA
+NOT_A                             00000005
+NOT_ADDRESS                       00000005
+NOT_BO                            00000000
+NOT_BOR                           00000000
+NOT_DONE                          00000002
+NOT_PD                            00000003
+NOT_POR                           00000001
+NOT_RBPU                          00000007
+NOT_RC8                           00000006
+NOT_T1SYNC                        00000002
+NOT_TO                            00000004
+NOT_TX8                           00000006
+NOT_W                             00000002
+NOT_WRITE                         00000002
+NTU_reading                       00000071
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 31
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+OBF                               00000006
+OERR                              00000001
+OPTION_REG                        00000081
+P                                 00000004
+PCFG0                             00000000
+PCFG1                             00000001
+PCFG2                             00000002
+PCFG3                             00000003
+PCL                               00000002
+PCLATH                            0000000A
+PCON                              0000008E
+PEIE                              00000006
+PEN                               00000002
+PIE1                              0000008C
+PIE2                              0000008D
+PIR1                              0000000C
+PIR2                              0000000D
+PORTA                             00000005
+PORTB                             00000006
+PORTC                             00000007
+PORTD                             00000008
+PORTE                             00000009
+PR2                               00000092
+PS0                               00000000
+PS1                               00000001
+PS2                               00000002
+PSA                               00000003
+PSPIE                             00000007
+PSPIF                             00000007
+PSPMODE                           00000004
+R                                 00000002
+RA0                               00000000
+RA1                               00000001
+RA2                               00000002
+RA3                               00000003
+RA4                               00000004
+RA5                               00000005
+RB0                               00000000
+RB1                               00000001
+RB2                               00000002
+RB3                               00000003
+RB4                               00000004
+RB5                               00000005
+RB6                               00000006
+RB7                               00000007
+RBIE                              00000003
+RBIF                              00000000
+RC0                               00000000
+RC1                               00000001
+RC2                               00000002
+RC3                               00000003
+RC4                               00000004
+RC5                               00000005
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 32
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+RC6                               00000006
+RC7                               00000007
+RC8_9                             00000006
+RC9                               00000006
+RCD8                              00000000
+RCEN                              00000003
+RCIE                              00000005
+RCIF                              00000005
+RCREG                             0000001A
+RCSTA                             00000018
+RD                                00000000
+RD0                               00000000
+RD1                               00000001
+RD2                               00000002
+RD3                               00000003
+RD4                               00000004
+RD5                               00000005
+RD6                               00000006
+RD7                               00000007
+RE0                               00000000
+RE1                               00000001
+RE2                               00000002
+READ_WRITE                        00000002
+RP0                               00000005
+RP1                               00000006
+RSEN                              00000001
+RX9                               00000006
+RX9D                              00000000
+R_NOT_W                           00000002
+R_W                               00000002
+RegA                              00000022
+RegB                              00000023
+S                                 00000003
+SEN                               00000000
+SMP                               00000007
+SPBRG                             00000099
+SPEN                              00000007
+SREN                              00000005
+SSPADD                            00000093
+SSPBUF                            00000013
+SSPCON                            00000014
+SSPCON2                           00000091
+SSPEN                             00000005
+SSPIE                             00000003
+SSPIF                             00000003
+SSPM0                             00000000
+SSPM1                             00000001
+SSPM2                             00000002
+SSPM3                             00000003
+SSPOV                             00000006
+SSPSTAT                           00000094
+STATUS                            00000003
+SYNC                              00000004
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 33
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+T0CS                              00000005
+T0IE                              00000005
+T0IF                              00000002
+T0SE                              00000004
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000010
+T1INSYNC                          00000002
+T1OSCEN                           00000003
+T1SYNC                            00000002
+T2CKPS0                           00000000
+T2CKPS1                           00000001
+T2CON                             00000012
+TMR0                              00000001
+TMR0IE                            00000005
+TMR0IF                            00000002
+TMR1                              0000000E
+TMR1CS                            00000001
+TMR1H                             0000000F
+TMR1IE                            00000000
+TMR1IF                            00000000
+TMR1L                             0000000E
+TMR1ON                            00000000
+TMR2                              00000011
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2ON                            00000002
+TOUTPS0                           00000003
+TOUTPS1                           00000004
+TOUTPS2                           00000005
+TOUTPS3                           00000006
+TRISA                             00000085
+TRISA0                            00000000
+TRISA1                            00000001
+TRISA2                            00000002
+TRISA3                            00000003
+TRISA4                            00000004
+TRISA5                            00000005
+TRISB                             00000086
+TRISB0                            00000000
+TRISB1                            00000001
+TRISB2                            00000002
+TRISB3                            00000003
+TRISB4                            00000004
+TRISB5                            00000005
+TRISB6                            00000006
+TRISB7                            00000007
+TRISC                             00000087
+TRISC0                            00000000
+TRISC1                            00000001
+TRISC2                            00000002
+TRISC3                            00000003
+TRISC4                            00000004
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 34
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TRISC5                            00000005
+TRISC6                            00000006
+TRISC7                            00000007
+TRISD                             00000088
+TRISD0                            00000000
+TRISD1                            00000001
+TRISD2                            00000002
+TRISD3                            00000003
+TRISD4                            00000004
+TRISD5                            00000005
+TRISD6                            00000006
+TRISD7                            00000007
+TRISE                             00000089
+TRISE0                            00000000
+TRISE1                            00000001
+TRISE2                            00000002
+TRMT                              00000001
+TX8_9                             00000006
+TX9                               00000006
+TX9D                              00000000
+TXD8                              00000000
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXREG                             00000019
+TXSTA                             00000098
+UA                                00000001
+W                                 00000000
+WCOL                              00000007
+WLSensor                          0000001D
+WR                                00000001
+WREN                              00000002
+WRERR                             00000003
+Z                                 00000002
+_BODEN_OFF                        00003FBF
+_BODEN_ON                         00003FFF
+_BOREN_OFF                        00003FBF
+_BOREN_ON                         00003FFF
+_CONFIG                           00002007
+_CPD_OFF                          00003FFF
+_CPD_ON                           00003EFF
+_CP_ALL                           00000FCF
+_CP_HALF                          00001FDF
+_CP_OFF                           00003FFF
+_CP_UPPER_256                     00002FEF
+_DEBUG_OFF                        00003FFF
+_DEBUG_ON                         000037FF
+_DEVID1                           00002006
+_FOSC_EXTRC                       00003FFF
+_FOSC_HS                          00003FFE
+_FOSC_LP                          00003FFC
+_FOSC_XT                          00003FFD
+_HS_OSC                           00003FFE
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 35
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_IDLOC0                           00002000
+_IDLOC1                           00002001
+_IDLOC2                           00002002
+_IDLOC3                           00002003
+_LP_OSC                           00003FFC
+_LVP_OFF                          00003F7F
+_LVP_ON                           00003FFF
+_PWRTE_OFF                        00003FFF
+_PWRTE_ON                         00003FF7
+_RC_OSC                           00003FFF
+_WDTE_OFF                         00003FFB
+_WDTE_ON                          00003FFF
+_WDT_OFF                          00003FFB
+_WDT_ON                           00003FFF
+_WRT_ENABLE_OFF                   00003DFF
+_WRT_ENABLE_ON                    00003FFF
+_WRT_OFF                          00003DFF
+_WRT_ON                           00003FFF
+_XT_OSC                           00003FFD
+__16F877                          00000001
+adc_config                        00000025
+bcd_config                        0000003F
+bcd_lkup                          000000AC
+bcd_test                          00000078
+bin2bcd                           0000003C
+cnt                               00000024
+configBCD                         00000049
+convert                           00000054
+dly                               00000039
+dly1                              0000009A
+dly2                              0000009C
+dly40                             00000037
+main                              00000010
+mux_delay                         00000097
+shift                             0000004F
+sseg_bcd                          0000009F
+temp                              00000028
+turbHi                            00000020
+turbLo                            00000021
+turbsens                          00000021
+
+
+MEMORY USAGE MAP ('X' = Used,  '-' = Unused)
+
+0000 : X--------------- XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0040 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+MPASM  5.51              WORKING_ADC_SSEG.ASM   4-13-2019  23:25:17         PAGE 36
+
+
+MEMORY USAGE MAP ('X' = Used,  '-' = Unused)
+
+
+0080 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+00C0 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0100 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0140 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0180 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+01C0 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0200 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0240 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0280 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+02C0 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0300 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0340 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0380 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+03C0 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0400 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0440 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0480 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+04C0 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0500 : XXXXXXXXXXXXXXXX XXXX------------ ---------------- ----------------
+
+All other memory blocks unused.
+
+Program Memory Words Used:  1285
+Program Memory Words Free:  6907
+
+
+Errors   :     0
+Warnings :     0 reported,     0 suppressed
+Messages :    17 reported,     0 suppressed
+
+
