@@ -31,8 +31,8 @@ float peakhourbill=0.0;
 float nonpeakhourbill=0.0;
 float total_bill_predicted=0.0;
 int remainingdays=29;
-#define FIREBASE_HOST "example-project.firebaseio.com"
-#define FIREBASE_AUTH "exampleAuthToken"
+#define FIREBASE_HOST " "
+#define FIREBASE_AUTH " "
 #define UNIT_COST 20
 #define WARNING_THRESHOLD 200
 #define CONTROL_THRESHOLD 200
