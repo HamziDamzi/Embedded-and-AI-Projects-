@@ -1,0 +1,113 @@
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <Update.h>
+#include <Preferences.h>
+
+WebServer server(80);
+void setupWiFi();
+void connectToWiFi(const char* ssid, const char* password);
+void handleRoot();
+void handleNotFound();
+void handleOTAUpdate();
+bool checkAuthorization();
+
+Preferences preferences;
+
+void setup() {
+  Serial.begin(115200);
+  while (!Serial) continue;
+  preferences.begin("wifi-creds", false);
+
+  setupWiFi();
+
+  if (!MDNS.begin("esp32")) {
+    Serial.println("Error setting up MDNS responder!");
+    while (1) {
+      delay(1000);
+    }
+  }
+
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    ESP.restart();
+  }, handleOTAUpdate);
+
+  server.onNotFound(handleNotFound);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+  delay(1); // Allow the background tasks to run
+}
+
+void setupWiFi() {
+  Serial.println("Scanning for WiFi networks...");
+  int n = WiFi.scanNetworks();
+  if (n == 0) {
+    Serial.println("No networks found");
+  } else {
+    for (int i = 0; i < n; ++i) {
+      Serial.print(i + 1);
+      Serial.print(": ");
+      Serial.println(WiFi.SSID(i));
+      delay(10);
+    }
+  }
+  Serial.println("\nEnter WiFi SSID: ");
+  String ssid = Serial.readStringUntil('\n');
+  Serial.println("Enter WiFi Password: ");
+  String password = Serial.readStringUntil('\n');
+
+  // Save the credentials
+  preferences.putString("ssid", ssid);
+  preferences.putString("password", password);
+
+  connectToWiFi(ssid.c_str(), password.c_str());
+}
+
+void connectToWiFi(const char* ssid, const char* password) {
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi..");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(500);
+  }
+  Serial.println("\nConnected to the WiFi network");
+}
+
+void handleRoot() {
+  server.send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+}
+
+void handleNotFound() {
+  server.send(404, "text/plain", "Not found");
+}
+
+void handleOTAUpdate() {
+  HTTPUpload& upload = server.upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    Serial.printf("Update: %s\n", upload.filename.c_str());
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // start with max available size
+      Update.printError(Serial);
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+      Update.printError(Serial);
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) { // true to set the size to the current progress
+      Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+    } else {
+      Update.printError(Serial);
+    }
+  }
+}
+
+bool checkAuthorization() {
+  return true;
+}
