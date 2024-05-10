@@ -1,0 +1,109 @@
+#include <SPI.h>
+#include <LoRa.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <WiFi.h>
+
+#define ss 10
+#define rst 9
+#define dio0 2
+
+const int trigPin3 = 6;
+const int echoPin3 = 7;
+const int relayPin3 = 4;  
+const int relayPin4 = 3;
+long duration3;
+int distance3;
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+#define OLED_RESET -1 
+
+const char* ssid = "TechnoSense21 Pvt Ltd3";
+const char* password = "ywiyc84338";
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+void setup() {
+  pinMode(trigPin3, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echoPin3, INPUT);  // Sets the echoPin as an Input
+  pinMode(relayPin3, OUTPUT);
+  digitalWrite(relayPin3, HIGH);
+  pinMode(relayPin4, OUTPUT);
+  digitalWrite(relayPin4, HIGH);
+
+  LoRa.setPins(ss, rst, dio0);
+  Serial.begin(9600);
+
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;);
+  }
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println("Initializing System...");
+  display.display();
+  delay(2000);
+
+  // Connect to WiFi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println("Connecting to WiFi..");
+    display.display();
+  }
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("WiFi Connected");
+  display.display();
+  delay(2000);
+
+  Serial.println("LoRa Sender");
+}
+
+void loop() {
+  digitalWrite(trigPin3, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin3, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin3, LOW);
+  duration3 = pulseIn(echoPin3, HIGH);
+  distance3 = duration3 * 0.034 / 2;
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Distance on Slave 3: ");
+  display.print(distance3);
+  display.println(" cm");
+  display.display();
+
+  if (distance3 < 7) {
+    String message3 = "Alert: Distance < 7 cm: " + String(distance3) + " cm";
+    digitalWrite(relayPin3, LOW);
+    digitalWrite(relayPin4, HIGH);
+    LoRa.beginPacket();
+    LoRa.print(message3);
+    LoRa.endPacket();
+    Serial.println(message3);
+  } else {
+    digitalWrite(relayPin3, HIGH);
+    digitalWrite(relayPin4, LOW);
+  }
+
+  String message = "Distance on Slave 3: " + String(distance3) + " cm";
+  LoRa.beginPacket();
+  LoRa.print(message);
+  LoRa.endPacket();
+  delay(1000);
+}
