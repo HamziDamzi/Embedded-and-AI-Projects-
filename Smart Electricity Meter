@@ -9,7 +9,8 @@
 #include <FirebaseESP32.h>
 #include <Adafruit_SSD1306.h>
 #include <HTTPClient.h>
-
+void setupWiFi();
+void connectToWiFi(const char* ssid, const char* password);
 
 #define sensorPin 5
 #define relayPin 18
@@ -51,6 +52,23 @@ EnergyMonitor emon;
 RTC_DS3231 rtc;
 bool peakHourMessagePrinted = false;
 int a=0;
+
+
+preferences.putString("ssid", ssid);
+  preferences.putString("password", password);
+
+  connectToWiFi(ssid.c_str(), password.c_str());
+}
+
+void connectToWiFi(const char* ssid, const char* password) {
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi..");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(500);
+  }
+  Serial.println("\nConnected to the WiFi network");
+}
 void getPredictions() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
