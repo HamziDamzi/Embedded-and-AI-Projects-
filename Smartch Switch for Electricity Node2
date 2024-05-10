@@ -1,0 +1,100 @@
+#include <WiFi.h>
+#include <FirebaseESP32.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <SPI.h>
+#include <LoRa.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+#define ss 5
+#define rst 14
+#define dio0 2
+
+const int trigPin1 = 33;
+const int echoPin1 = 32;
+const int relayPin1 = 13;
+
+long duration1;
+int distance1;
+
+const char* ssid = "TechnoSense21 Pvt Ltd3";
+const char* password = "ywiyc84338";
+const char* firebaseHost = "-";
+const char* firebaseAuth = "-";
+
+FirebaseData firebaseData;
+
+void setup() {
+  Serial.begin(115200);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+
+  pinMode(trigPin1, OUTPUT);
+  pinMode(echoPin1, INPUT);
+  pinMode(relayPin1, OUTPUT);
+  digitalWrite(relayPin1, HIGH);
+
+  LoRa.setPins(ss, rst, dio0);
+  LoRa.begin(433E6);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println("Connecting to WiFi...");
+    display.display();
+  }
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("WiFi Connected!");
+  display.display();
+
+  Firebase.begin(firebaseHost, firebaseAuth);
+}
+
+void loop() {
+  digitalWrite(trigPin1, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin1, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin1, LOW);
+
+  duration1 = pulseIn(echoPin1, HIGH);
+  distance1 = duration1 * 0.034 / 2;
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Distance: ");
+  display.print(distance1);
+  display.println(" cm");
+  display.display();
+
+  if (distance1 < 10) {
+    String message1 = "Distance < 10 cm: " + String(distance1);
+    digitalWrite(relayPin1, LOW);
+    LoRa.beginPacket();
+    LoRa.print(message1);
+    LoRa.endPacket();
+
+    Firebase.setFloat(firebaseData, "/distance", distance1);
+  } else {
+    digitalWrite(relayPin1, HIGH);
+  }
+
+  LoRa.beginPacket();
+  LoRa.print("Distance: ");
+  LoRa.print(distance1);
+  LoRa.print(" cm");
+  LoRa.endPacket();
+
+  delay(1000);
+}
