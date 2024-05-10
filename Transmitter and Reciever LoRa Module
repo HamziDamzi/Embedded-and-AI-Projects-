@@ -1,0 +1,158 @@
+//Senderr
+
+#include <SPI.h>
+#include <LoRa.h>
+#include <WiFi.h>
+#include <BluetoothSerial.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+
+const char* ssid = "TS21 PVT";
+const char* password = "ywiyc84438";
+
+#define SCK     5
+#define MISO    19
+#define MOSI    27
+#define SS      18
+#define RST     14
+#define DI0     26
+#define IR_LED_PIN 4
+#define IR_SENSOR_PIN 34
+
+Adafruit_SSD1306 display(128, 64, &Wire);
+BluetoothSerial SerialBT;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(IR_LED_PIN, OUTPUT);
+  pinMode(IR_SENSOR_PIN, INPUT);
+
+
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 allocation failed");
+    while (1);
+  }
+
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("WiFi connected");
+  SerialBT.begin("ESP32_LoRa_TX");
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("LoRa Transmitter");
+  display.display();
+}
+
+void loop() {
+  digitalWrite(IR_LED_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(IR_LED_PIN, LOW);
+  
+  int sensorValue = analogRead(IR_SENSOR_PIN);
+  float voltage = sensorValue * (3.3 / 4095.0);
+  String data = String(voltage, 3);
+
+  LoRa.beginPacket();
+  LoRa.print(data);
+  LoRa.endPacket();
+
+  SerialBT.println("Data Sent via LoRa: " + data);
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Sending: ");
+  display.println(data);
+  display.display();
+
+  delay(2000);
+}
+
+
+
+//Reciever
+
+#include <SPI.h>
+#include <LoRa.h>
+#include <WiFi.h>
+#include <BluetoothSerial.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+
+const char* ssid = "TS21 PVT2";
+const char* password = "technosen3454";
+
+
+#define SCK     5
+#define MISO    19
+#define MOSI    27
+#define SS      18
+#define RST     14
+#define DI0     26
+
+Adafruit_SSD1306 display(128, 64, &Wire);
+BluetoothSerial SerialBT;
+
+void setup() {
+  Serial.begin(9600);
+
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 allocation failed");
+    for(;;);
+  }
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("WiFi connected");
+
+  SerialBT.begin("ESP32_LoRa_RX");
+
+  LoRa.onReceive(onReceive);
+  LoRa.receive();
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("LoRa Receiver");
+  display.display();
+}
+
+void onReceive(int packetSize) {
+  if (packetSize == 0) return;
+
+  String received = "";
+  while (LoRa.available()) {
+    received += (char)LoRa.read();
+  }
+
+  SerialBT.println("Data Received via LoRa: " + received);
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Received: ");
+  display.println(received);
+  display.display();
+}
+
+void loop() {
+  // LoRa.onReceive() handles data
+}
