@@ -1,0 +1,250 @@
+#include "EmonLib.h"
+#include "RTClib.h"
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <WiFi.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+#include <RTClib.h>
+#include <FirebaseESP32.h>
+#include <Adafruit_SSD1306.h>
+#include <HTTPClient.h>
+
+
+#define sensorPin 5
+#define relayPin 18
+#define vCalibration 103.3
+#define currCalibration 0.52
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+unsigned long lastMillis = millis();
+unsigned long startTime = 0;
+const int minutesToWait=1;
+float kWh = 0.0; 
+float kWhp = 0.0; 
+float total_units = 0;
+float bill_amount = 0;
+float peakhourbill=0.0;
+float nonpeakhourbill=0.0;
+float total_bill_predicted=0.0;
+int remainingdays=29;
+#define FIREBASE_HOST "example-project.firebaseio.com"
+#define FIREBASE_AUTH "exampleAuthToken"
+#define UNIT_COST 20
+#define WARNING_THRESHOLD 200
+#define CONTROL_THRESHOLD 200
+#define LIGHT_PIN 26
+#define AC_PIN 27
+#define ML_ENDPOINT "http://example-ml-predict.com/predict"
+
+// Objects for hardware communication
+RTC_DS3231 rtc;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 19800, 60000);
+Adafruit_SSD1306 display(128, 64, &Wire);
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+EnergyMonitor emon;
+RTC_DS3231 rtc;
+bool peakHourMessagePrinted = false;
+int a=0;
+void getPredictions() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(ML_ENDPOINT);
+    int httpResponseCode = http.GET();
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      display.println("Predicted Usage: " + response + " KWh");
+    } else {
+      display.println("HTTP Error: " + httpResponseCode);
+    }
+    http.end();
+  }
+}
+
+void setup()
+{
+  Serial.begin(115200);
+   Serial.println("\n.............................Welcome to Bill Prediction Smart Chip.......");
+  Serial.println("..............................By TechnoSense21 Pvt Ltd ....................");
+  Serial.println("...............................System Initialization.........................");
+  
+  pinMode(sensorPin, INPUT);
+  pinMode(relayPin, OUTPUT);
+  startTime = millis();
+
+  if (!rtc.begin())
+  {
+    Serial.println("RTC is NOT Running!");
+  }
+  // automatically sets the RTC to the date & time on PC this sketch was compiled
+  rtc.adjust(DateTime(F(_DATE), F(TIME_)));
+  emon.voltage(34, vCalibration, 1.7);
+  emon.current(sensorPin, currCalibration);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+  {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;)
+      ;
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println("Bill Prediction System!");
+  display.display();
+
+}
+
+void loop()
+{
+  static float energy = 0.0;
+  unsigned long currentMillis = millis();
+  unsigned long elapsedTime = currentMillis - lastMillis;
+
+  energy += emon.apparentPower * (elapsedTime / 3600000.0); // kWh = kW * hours
+  lastMillis = currentMillis;
+
+  DateTime now = rtc.now();
+  int currentMonth = now.month();
+  int currentHour = now.hour();
+  int currentSecond = now.second();
+  int minute = now.minute();
+  int currentday = now.day();
+ 
+  Serial.print("\nCurrent Date & Time: ");
+  Serial.print(now.day());
+  Serial.print('/');
+  Serial.print(now.month());
+  Serial.print('/');
+  Serial.print(now.year());
+  Serial.print(" (");
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.print(") ");
+  Serial.print(now.hour());
+  Serial.print(':');
+  Serial.print(now.minute());
+  Serial.print(':');
+  Serial.print(now.second());
+  emon.calcVI(20, 2000);
+
+if (now.hour() >= 19 && now.hour() <= 22) {
+    if (!peakHourMessagePrinted) {
+      Serial.println("\n\t..................Be Aware! You are Using Peak Hour Units..................");
+      peakHourMessagePrinted = true; 
+    }
+  } else {
+    if (!peakHourMessagePrinted) {
+      Serial.println("\n\t.............................You are Using Non-Peak Hour Units.......");
+      peakHourMessagePrinted = true; 
+    }
+  }
+  
+  Serial.print("\n\tVrms: ");
+  Serial.print(emon.Vrms, 2);
+  Serial.print("V");
+
+  Serial.print("\tIrms: ");
+  Serial.print(emon.Irms, 4);
+  Serial.print("A");
+
+  Serial.print("\tPower: ");
+  Serial.print(emon.apparentPower, 4);
+  Serial.print("W");
+
+  display.setCursor(0, 20);
+  display.print("Current :");
+  display.println(emon.Irms);
+  display.display();
+  display.setCursor(0, 30);
+  display.print("Voltage :");
+  display.println(emon.Vrms);
+  display.display();
+  display.setCursor(0, 40);
+  display.print("Power :");
+  display.println(emon.apparentPower);
+  display.display();
+  display.setCursor(0, 50);
+  display.print("Units :");
+  display.println(kWh);
+  display.display();
+  display.clearDisplay();
+
+if (now.hour() >= 19 && now.hour() <= 22){
+    kWhp = kWhp + emon.apparentPower * (millis() - lastMillis) / 3600000.0;
+     Serial.print(" kWh: ");
+     Serial.print(kWhp, 4);                                                                                //Peak hours
+     peakhourbill = peakhourbill + (kWhp * 70);
+  }
+  else{
+    kWh = kWh + emon.apparentPower * (millis() - lastMillis) / 3600000.0;                                  //Non-Peak Hours
+    Serial.print(" kWh: ");
+    Serial.print(kWh, 4);
+    nonpeakhourbill = nonpeakhourbill + (kWh * 40);
+  }
+
+  Serial.print("\nCurrently Your Bill is : Rs. ");                                                       
+  Serial.print(nonpeakhourbill + peakhourbill);
+  Serial.print("\n");
+
+  unsigned long elapsedTime1 = millis() - startTime;
+
+  if (elapsedTime1 >= (minutesToWait * 60 * 1000)){ 
+    
+    Serial.print("\n\n\t...........................Electricity Usage Day Summary.........................");                             
+    Serial.print("\nPeak Hours Units Consumed    : ");
+    Serial.print(kWhp);
+    Serial.print("\nNon-Peak Hours Units Consumed: ");
+    Serial.print(kWh);
+    Serial.print("\nTotal Units Consumed         : ");
+    total_units = kWh + kWhp;
+    Serial.print(total_units);
+    Serial.print("\nYour Bill For Today is         Rs. ");
+ 
+    bill_amount=nonpeakhourbill + peakhourbill;
+    Serial.print(bill_amount);
+
+    //Predicting Bill for Month   
+  
+
+    total_bill_predicted = total_bill_predicted + (bill_amount * remainingdays);
+    Serial.print("\nPredicted Bill for this Month : Rs. ");
+    Serial.println(total_bill_predicted, 2); //
+    remainingdays--;
+     startTime = millis();
+  }
+ 
+    if (total_units >= 80){
+      Serial.println("\nWarning..... You are exceeding your unit limits\n");
+    }
+}
+void manageAppliances(float totalKWh) {
+  if (totalKWh > CONTROL_THRESHOLD) {
+    if (lightState) {
+      digitalWrite(LIGHT_PIN, LOW);
+      lightState = false;
+      Firebase.setString(firebaseData, "/control/lights", "off due to high usage");
+    }
+    if (acState) {
+      digitalWrite(AC_PIN, LOW);
+      acState = false;
+      Firebase.setString(firebaseData, "/control/ac", "off due to high usage");
+    }
+  } else {
+    if (!lightState) {
+      digitalWrite(LIGHT_PIN, HIGH);
+      lightState = true;
+      Firebase.setString(firebaseData,
+
+
+
+
+
+
+
+
