@@ -1,0 +1,85 @@
+#include <WiFi.h>
+#include <SPI.h>
+#include <LoRa.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <FirebaseESP32.h>
+
+#define SCREEN_WIDTH 128 
+#define SCREEN_HEIGHT 64 
+#define OLED_RESET     -1 
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+#define FIREBASE_HOST " -"
+#define FIREBASE_AUTH " - "
+#define WIFI_SSID "TS21 PVT LTD2"
+#define WIFI_PASSWORD "ywiyc84338"
+
+const int trigPin = 6;
+const int echoPin = 7;
+
+long duration;
+int distance;
+
+FirebaseData firebaseData;
+
+void setup() {
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+  pinMode(echoPin, INPUT);  // Sets the echoPin as an Input
+
+  Serial.begin(9600);
+  while (!Serial);
+
+  display.begin(SSD1306_SWITCHCAPVCC, OLED_RESET);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" connected");
+
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+}
+
+void loop() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2;
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("LoRa Sender");
+  display.print("Distance: ");
+  display.print(distance);
+  display.println(" cm");
+  display.display();
+
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  Firebase.setFloat(firebaseData, "/sensor/distance", distance);
+  LoRa.beginPacket();
+  LoRa.print("Distance: ");
+  LoRa.print(distance);
+  LoRa.print(" cm");
+  LoRa.endPacket();
+
+  delay(2000);
+}
