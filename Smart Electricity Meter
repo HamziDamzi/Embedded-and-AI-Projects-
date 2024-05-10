@@ -39,7 +39,7 @@ int remainingdays=29;
 #define CONTROL_THRESHOLD 200
 #define LIGHT_PIN 26
 #define AC_PIN 27
-#define ML_ENDPOINT "http://example-ml-predict.com/predict"
+#define ML_ENDPOINT " "
 
 // Objects for hardware communication
 RTC_DS3231 rtc;
