@@ -1,0 +1,95 @@
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <WiFi.h>
+#include <FirebaseESP32.h>
+#include <ESPmDNS.h>
+#include <HTTPClient.h>
+
+// Define the pins
+const int irLEDPin = 4;         // GPIO pin connected to the IR LED
+const int irReceiverPin = 34;   // GPIO pin connected to the IR receiver
+
+// OLED display width and height
+#define SCREEN_WIDTH 128 
+#define SCREEN_HEIGHT 64 
+#define OLED_RESET    -1  // Reset pin #
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// WiFi credentials
+const char* ssid = "TS21 ";
+const char* password = "ywyic844389";
+
+// Firebase credentials (placeholders)
+#define FIREBASE_HOST "example.firebaseio.com"
+#define FIREBASE_AUTH "exampleFirebaseSecret"
+
+FirebaseData firebaseData;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(irLEDPin, OUTPUT);
+  pinMode(irReceiverPin, INPUT);
+  
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    for(;;);
+  }
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0,0);
+  display.println(F("Init Optical Fiber Gas Detector"));
+  display.display();
+  delay(2000);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+  
+  if (!MDNS.begin("esp32")) {
+    while (1) {
+      delay(1000);
+    }
+  }
+
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println(F("WiFi & Firebase"));
+  display.println(F("Connected"));
+  display.display();
+  delay(2000);
+}
+
+void loop() {
+  digitalWrite(irLEDPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(irLEDPin, LOW);
+  
+  int sensorValue = analogRead(irReceiverPin);
+  float voltage = sensorValue * (3.3 / 4095.0);
+
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.print(F("Value: "));
+  display.println(sensorValue);
+  display.print(F("V: "));
+  display.println(voltage, 3);
+
+  if (voltage < 0.6) {
+    display.println(F("Leak Detected!"));
+    if (!Firebase.setFloat(firebaseData, "alerts/leak", voltage)) {
+      Serial.println(F("Firebase write failed"));
+    }
+  } else {
+    Firebase.setFloat(firebaseData, "currentValues", voltage);
+  }
+
+  display.display();
+  delay(100);
+}
