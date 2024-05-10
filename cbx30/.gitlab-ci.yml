@@ -1,0 +1,156 @@
+# Stages are used to order jobs
+# Jobs from the same stage are ran in parallel
+# Jobs from different stages are run sequencially, depending on previous 
+# stage's success
+stages:
+    - build
+    - release
+
+# Job templates.
+# They can be used to factorize code and reduce code repetition
+# ---
+# Base build executes the basic build of the project
+# BULD_TARGET Must be declared on a per-job basis
+# (or at least per .job_rules basis)
+.base_build: &base_build
+    stage: build
+    script:
+        - echo $CI_JOB_NAME
+        - echo $BUILD_TARGET
+        - ./tools/cicd/build.sh $BUILD_TARGET
+
+# Basic artifacts rules for builds
+.base_artifacts_params: &base_artifacts_params
+    artifacts:
+        # Defines name of the artifacts file. Gitlab CI/CD variables can be useful.
+        name: "$CI_PROJECT_NAME-$CI_COMMIT_SHORT_SHA"
+        # Only if successful
+        when: on_success
+        # Expiration date is set to instance default 
+
+        # Example path:
+        paths:
+            - output/artifacts/
+
+# rules for master job type of triggers
+# It triggers when changes are pushed to the master branch
+# or with API triggers, or with planned schedules
+.job_master_rules: &job_master_rules
+    variables:
+        BUILD_TARGET: "all"
+    only:
+        - master
+        - triggers
+        - schedules
+
+# These rules will make a job trigger only when a pipeline is ran from the 
+# 'Run pipeline' button on the website
+# BUILD_TARGET can be overwritten by manual variable input
+.job_manual_rules: &job_manual_rules
+    variables:
+        BUILD_TARGET: "all"
+    except:
+        - pushes
+        - master
+        - merge_requests
+        - tags
+
+# These rules make a job trigger only for merge requests
+# Build target is ALL as it is expected that merge jobs
+# should be more thorough
+.job_merge_requests_rules: &job_merge_requests_rules
+    variables:
+        BUILD_TARGET: "all"
+    only:
+        - merge_requests
+
+#  artifacts rules for merge  builds
+.merge_artifacts_params: &merge_artifacts_params
+    artifacts:
+        # Defines name of the artifacts file. Gitlab CI/CD variables can be useful.
+        name: "$CI_PROJECT_NAME-$CI_COMMIT_SHORT_SHA"
+        # Only if successful
+        when: on_success
+        # Expiration date is set to instance default 
+        expose_as: 'Build output'
+        # Example path:
+        paths:
+            - output/artifacts/
+
+# Automatically build job when the branch name or tag name starts with ci or CI
+.job_continuous_rules: &job_continuous_rules
+    variables:
+        BUILD_TARGET: "all"
+    only:
+        - /^ci*/i
+
+# These rules are the trigger rules for releases
+# Only pushing a correctly formatted version tag will trigger 
+# Explicitly excluded branches from matching
+.job_release_rules: &job_release_rules
+    only:
+        - /^v[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+    except:
+        - /^ci*/i
+        - branches
+
+# This is a generic master-branch build job 
+build-job-master:
+    <<: *base_artifacts_params
+    <<: *job_master_rules
+    <<: *base_build
+
+# This is the job that triggers when pipeline is triggerd manually 
+# via "Run pipeline" on the website 
+build-job-manual:
+    <<: *base_artifacts_params
+    <<: *job_manual_rules
+    <<: *base_build
+
+# The job that triggers for merge reques. We can expect it to be more thorough
+build-job-merge-requests:
+    <<: *merge_artifacts_params
+    <<: *job_merge_requests_rules
+    <<: *base_build
+
+# Automatically build job when the branch name or tag name starts with ci or CI
+build-job-continuous:
+    <<: *base_artifacts_params
+    <<: *job_continuous_rules
+    <<: *base_build
+
+# Build with the release target
+# Release jobs only triggers when a tag that matches the pattern for release tag
+# is pushed to the repo. 
+release-build-job:
+    # Release job is only run when tags are pushed
+    variables:
+        BUILD_TARGET: "release"
+    <<: *base_build
+    <<: *job_release_rules
+
+    artifacts:
+        # Defines name of the artifacts file. Gitlab CI/CD variables can be useful.
+        name: "$CI_PROJECT_NAME-$CI_COMMIT_REF_SLUG"
+        # Only if successful
+        when: on_success
+        # Expiration date has to be adjusted
+        expire_in: 50 years 
+        # Example path
+        paths:
+            - output/artifacts/
+
+# Job that publishes the Release to gitlab, ideally tests should be run before
+release-publish-job:
+    stage: release
+    <<: *job_release_rules
+    variables:
+        RELEASE_NAME: ""
+        DESCRIPTION: ""
+        DATA_STRING: '{ "name": "$RELEASE_NAME", "tag_name": "$CI_COMMIT_REF_NAME", "description": "$DESCRIPTION" }'
+    script:
+        - python3 tools/releaser/releaser.py 
+            --project-name $CI_PROJECT_PATH 
+            --access-token $ACCESS_TOKEN 
+            --publish-from-ci "$DATA_STRING"
+

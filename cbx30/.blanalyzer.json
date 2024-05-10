@@ -1,0 +1,48 @@
+{
+    "pre_build_script": 
+    {
+        "path" : "/",
+        "script" : "cmake",
+        "arg" : ["-H.", "-Bblanalyzer_build"]
+    },
+
+    "build_script": 
+    {
+        "path" : "/",
+        "script" : "cmake",
+        "target": "release",
+        "arg" : ["--build", "blanalyzer_build", "--target", "release", "--", "-j8"]
+    },
+    
+    "clean_script":
+    {
+        "path" : "/",
+        "script" : "cmake",
+        "arg" : ["--build", "blanalyzer_build", "--target", "clean", "--"]
+    },
+
+    "project": 
+    {
+        "root":".",
+        "build_dir": "blanalyzer_build/CMakeFiles",
+        "elf_loc": "build/release/release.elf",
+        "report_dir":"report"
+    },
+
+    "footprint":
+    {
+        "size_script":"arm-none-eabi-size"
+    },
+
+    "filters": 
+    {
+        "file_filter":[
+        	"bootloader/", 
+        	"build/",
+        	"nrf52832_connectivity/", 
+        	"tools/", 
+        	"CMakeFiles/",
+        	"lib/"
+        ]   
+    }
+}
