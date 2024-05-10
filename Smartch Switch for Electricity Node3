@@ -1,0 +1,100 @@
+#include <SPI.h>
+#include <LoRa.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SS_PIN 10
+#define RST_PIN 9
+#define DIO0_PIN 2
+
+const int trigPin = 6;
+const int echoPin = 7;
+const int relayPin = 3;
+const char* ssid = "TechnoSense21 Pvt Ltd3";
+const char* password = "ywiyc84338";
+long duration;
+int distance;
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println("Connecting to WiFi..");
+    display.display();
+  }
+void setup() {
+  pinMode(trigPin, OUTPUT); 
+  pinMode(echoPin, INPUT);  
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, HIGH); // Start with the relay turned off
+
+  LoRa.setPins(SS_PIN, RST_PIN, DIO0_PIN);
+  Serial.begin(9600);
+
+  if (!LoRa.begin(433E6)) {
+    Serial.println("Starting LoRa failed!");
+    while (1); 
+  }
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
+    Serial.println("SSD1306 allocation failed");
+    for (;;); 
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println("LoRa Distance Monitor");
+  display.display();
+  delay(2000);
+}
+
+void loop() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2; 
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Distance: ");
+  display.print(distance);
+  display.println(" cm");
+  display.display();
+
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  manageRelay(distance);
+
+  String message = "Distance: " + String(distance) + " cm";
+  sendLoRaMessage(message);
+
+  delay(1000); 
+}
+
+void manageRelay(int distance) {
+  if (distance < 7) {
+    digitalWrite(relayPin, LOW); 
+  } else {
+    digitalWrite(relayPin, HIGH); 
+  }
+}
+
+void sendLoRaMessage(String message) {
+  LoRa.beginPacket();
+  LoRa.print(message);
+  LoRa.endPacket();
+  Serial.println("Sent LoRa message: " + message);
+}
