@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "emmc_task.h": "c",
+        "rtt.h": "c",
+        "ws2812.h": "c",
+        "stm32l4xx.h": "c",
+        "proto_task.h": "c",
+        "emmc.h": "c",
+        "stm32l4xx_hal_emmc.h": "c",
+        "esp8266.h": "c"
+    }
+}

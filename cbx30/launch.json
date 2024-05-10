@@ -1,0 +1,29 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "debug",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceRoot}/build/${input:target}/${input:target}.elf",
+            "serverpath": "/bin/JLinkGDBServer", 
+            "servertype": "jlink",
+            "device": "STM32L476QG",
+            "interface": "swd",
+            "type": "cortex-debug",
+            "runToMain": true,
+            "armToolchainPath":"/bin/",
+            "request": "launch"
+        }
+    ],
+    "inputs": [
+        {
+          "type": "promptString",
+          "id": "target",
+          "description": "Debug target?",
+          "default": "debug_no_bloader"
+        }
+    ]
+}

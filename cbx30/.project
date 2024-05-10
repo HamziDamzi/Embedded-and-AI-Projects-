@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>3300-144-crossbox-v01-04-00</name>
+	<name>dut</name>
 	<comment></comment>
 	<projects>
-		<project>generic_nrf52811_xxaa</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
